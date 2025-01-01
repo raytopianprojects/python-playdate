@@ -14,3 +14,6 @@ Todo
 * more testing
 * pythonic classes
 * fix importing
+
+![image](https://github.com/user-attachments/assets/f00fbb8e-4b8b-401b-8aa4-0f28c104af07)
+Running in simulator
