@@ -1,0 +1,2551 @@
+
+sdk.play.date
+Inside Playdate with C
+Copyright © Panic Inc.
+100–128 minutes
+7.1. Utility functions
+Memory allocation
+
+void* playdate->system->realloc(void* ptr, size_t size)
+
+Allocates heap space if ptr is NULL, else reallocates the given pointer. If size is zero, frees the given pointer.
+Logging
+
+void playdate->system->error(const char* format, ...)
+
+Calls the log function, outputting an error in red to the console, then pauses execution.
+
+void playdate->system->logToConsole(const char* format, ...)
+
+Calls the log function.
+
+Equivalent to print() in the Lua API.
+
+Your game can add up to three menu items to the system menu. Three types of menu items are supported: normal action menu items, checkmark menu items, and options menu items.
+
+PDMenuItem *menuItem = pd->system->addMenuItem("Item 1", menuItemCallback, NULL);
+PDMenuItem *checkMenuItem = pd->system->addCheckmarkMenuItem("Item 2", 1, menuCheckmarkCallback, NULL);
+const char *options[] = {"one", "two", "three"};
+PDMenuItem *optionMenuItem = pd->system->addOptionsMenuItem("Item 3", options, 3, menuOptionsCallback, NULL);
+
+Time and Date
+
+unsigned int playdate->system->getCurrentTimeMilliseconds(void)
+
+Returns the number of milliseconds since…​some arbitrary point in time. This should present a consistent timebase while a game is running, but the counter will be disabled when the device is sleeping.
+
+unsigned int playdate->system->getSecondsSinceEpoch(unsigned int *milliseconds)
+
+Returns the number of seconds (and sets milliseconds if not NULL) elapsed since midnight (hour 0), January 1, 2000.
+
+void playdate->system->resetElapsedTime(void)
+
+Resets the high-resolution timer.
+
+float playdate->system->getElapsedTime()
+
+Returns the number of seconds since playdate.resetElapsedTime() was called. The value is a floating-point number with microsecond accuracy.
+
+int32_t playdate->system->getTimezoneOffset()
+
+Returns the system timezone offset from GMT, in seconds.
+
+PDDateTime
+
+struct PDDateTime
+{
+	uint16_t year;
+	uint8_t month; // 1-12
+	uint8_t day; // 1-31
+	uint8_t weekday; // 1=monday-7=sunday
+	uint8_t hour;
+	uint8_t minute;
+	uint8_t second;
+};
+
+void playdate->system->convertEpochToDateTime(uint32_t epoch, struct PDDateTime* datetime)
+
+Converts the given epoch time to a PDDateTime.
+
+uint32_t playdate->system->convertDateTimeToEpoch(struct PDDateTime* datetime)
+
+Converts the given PDDateTime to an epoch time.
+
+int playdate->system->shouldDisplay24HourTime()
+
+Returns 1 if the user has set the 24-Hour Time preference in the Settings program.
+Miscellaneous
+
+int playdate->system->getFlipped()
+
+Returns 1 if the global "flipped" system setting is set, otherwise 0.
+
+int playdate->system->getReduceFlashing()
+
+Returns 1 if the global "reduce flashing" system setting is set, otherwise 0.
+
+int playdate->system->formatString(char **outstring, const char *format, ...)
+
+Creates a formatted string and returns it via the outstring argument. The arguments and return value match libc’s asprintf(): the format string is standard printf() style, the string returned in outstring should be freed by the caller when it’s no longer in use, and the return value is the length of the formatted string.
+
+int playdate->system->vaFormatString(char **ret, const char *format, va_list args)
+
+Allocates and formats a string using a variadic va_list argument, in the style of vasprintf(). The string returned via ret should be freed by the caller when it is no longer in use. The return value from the function is the length of the formatted string.
+
+int playdate->system->parseString(const char *str, const char *format, ...)
+
+Like libc sscanf(), parses a string according to a format string and places the values into pointers passed in after the format. The return value is the number of items matched.
+
+void playdate->system->setUpdateCallback(PDCallbackFunction* update, void* userdata)
+
+PDCallbackFunction
+
+int PDCallbackFunction(void* userdata);
+
+Replaces the default Lua run loop function with a custom update function. The update function should return a non-zero number to tell the system to update the display, or zero if update isn’t needed.
+
+void playdate->system->setSerialMessageCallback(void (*callback)(const char* data));
+
+Provides a callback to receive messages sent to the device over the serial port using the msg command. If no device is connected, you can send these messages to a game in the simulator by entering !msg <message> in the Lua console.
+
+void playdate->system->drawFPS(int x, int y)
+
+Calculates the current frames per second and draws that value at x, y.
+
+float playdate->system->getBatteryPercentage()
+
+Returns a value from 0-100 denoting the current level of battery charge. 0 = empty; 100 = full.
+
+float playdate->system->getBatteryVoltage()
+
+Returns the battery’s current voltage level.
+
+float playdate->system->clearICache()
+
+Flush the CPU instruction cache, on the very unlikely chance you’re modifying instruction code on the fly. (If you don’t know what I’m talking about, you don’t need this. :smile:)
+7.2. Audio
+
+uint32_t playdate->sound->getCurrentTime(void)
+
+Returns the sound engine’s current time value, in units of sample frames, 44,100 per second.
+
+SoundChannel* playdate->sound->getDefaultChannel(void)
+
+Returns the default channel, where sound sources play if they haven’t been explicity assigned to a different channel.
+
+int playdate->sound->addChannel(SoundChannel* channel)
+
+Adds the given channel to the sound engine. Returns 1 if the channel was added, 0 if it was already in the engine.
+
+SoundSource* playdate->sound->addSource(AudioSourceFunction* callback, void* context, int stereo)
+
+The callback function you pass in will be called every audio render cycle.
+
+AudioSourceFunction
+
+int AudioSourceFunction(void* context, int16_t* left, int16_t* right, int len)
+
+This function should fill the passed-in left buffer (and right if it’s a stereo source) with len samples each and return 1, or return 0 if the source is silent through the cycle.
+
+int playdate->sound->removeSource(SoundSource* source)
+
+Removes the given SoundSource object from its channel, whether it’s in the default channel or a channel created with playdate→sound→addChannel(). Returns 1 if a source was removed, 0 if the source wasn’t in a channel.
+
+int playdate->sound->removeChannel(SoundChannel* channel)
+
+Removes the given channel from the sound engine. Returns 1 if the channel was successfully removed, 0 if the channel is the default channel or hadn’t been previously added.
+
+int playdate->sound->setMicCallback(AudioInputFunction* callback, void* context, enum MicSource source)
+
+The callback you pass in will be called every audio cycle.
+
+AudioInputFunction
+
+int AudioInputFunction(void* context, int16_t* data, int len)
+
+enum MicSource
+
+enum MicSource {
+	kMicInputAutodetect = 0,
+	kMicInputInternal = 1,
+	kMicInputHeadset = 2
+};
+
+Your input callback will be called with the recorded audio data, a monophonic stream of samples. The function should return 1 to continue recording, 0 to stop recording.
+
+The Playdate hardware has a circuit that attempts to autodetect the presence of a headset mic, but there are cases where you may want to override this. For instance, if you’re using a headphone splitter to wire an external source to the mic input, the detector may not always see the input. Setting the source to kMicInputHeadset forces recording from the headset. Using kMicInputInternal records from the device mic even when a headset with a mic is plugged in. And kMicInputAutodetect uses a headset mic if one is detected, otherwise the device microphone. setMicCallback() returns which source the function used, internal or headset, or 0 on error.
+
+void playdate->sound->getHeadphoneState(int* headphone, int* mic, void (*changeCallback)(int headphone, int mic))
+
+If headphone contains a pointer to an int, the value is set to 1 if headphones are currently plugged in. Likewise, mic is set if the headphones include a microphone. If changeCallback is provided, it will be called when the headset or mic status changes, and audio output will not automatically switch from speaker to headphones when headphones are plugged in (and vice versa). In this case, the callback should use playdate→sound→setOutputsActive() to change the output if needed.
+
+void playdate->sound->setOutputsActive(int headphone, int speaker)
+
+Force audio output to the given outputs, regardless of headphone status.
+Channels
+
+SoundChannel* playdate->sound->channel->newChannel(void)
+
+Returns a new SoundChannel object.
+
+void playdate->sound->channel->freeChannel(SoundChannel* channel)
+
+Frees the given SoundChannel.
+
+void playdate->sound->channel->addSource(SoundChannel* channel, SoundSource* source)
+
+Adds a SoundSource to the channel. If a source is not assigned to a channel, it plays on the default global channel.
+
+int playdate->sound->channel->removeSource(SoundChannel* channel, SoundSource* source)
+
+Removes a SoundSource to the channel. Returns 1 if the source was found in (and removed from) the channel, otherwise 0.
+
+void playdate->sound->channel->addEffect(SoundChannel* channel, SoundEffect* effect)
+
+Adds a SoundEffect to the channel.
+
+void playdate->sound->channel->removeEffect(SoundChannel* channel, SoundEffect* effect)
+
+Removes a SoundEffect from the channel.
+
+void playdate->sound->channel->setVolume(SoundChannel* channel, float volume)
+
+Sets the volume for the channel, in the range [0-1].
+
+float playdate->sound->channel->getVolume(SoundChannel* channel)
+
+Gets the volume for the channel, in the range [0-1].
+
+void playdate->sound->channel->setVolumeModulator(SoundChannel* channel, PDSynthSignalValue* mod)
+
+Sets a signal to modulate the channel volume. Set to NULL to clear the modulator.
+
+PDSynthSignalValue* playdate->sound->channel->getVolumeModulator(SoundChannel* channel)
+
+Gets a signal modulating the channel volume.
+
+void playdate->sound->channel->setPan(SoundChannel* channel, float pan)
+
+Sets the pan parameter for the channel. Valid values are in the range [-1,1], where -1 is left, 0 is center, and 1 is right.
+
+void playdate->sound->channel->setPanModulator(SoundChannel* channel, PDSynthSignalValue* mod)
+
+Sets a signal to modulate the channel pan. Set to NULL to clear the modulator.
+
+PDSynthSignalValue* playdate->sound->channel->getPanModulator(SoundChannel* channel)
+
+Gets a signal modulating the channel pan.
+
+SoundSource* playdate->sound->channel->addCallbackSource(SoundChannel* channel, AudioSourceFunction* callback, void* context, int stereo)
+
+Creates a new SoundSource using the given data provider callback and adds it to the channel.
+
+AudioSourceFunction
+
+int AudioSourceFunction(void* context, int16_t* left, int16_t* right, int len)
+
+This function should fill the passed-in left buffer (and right if it’s a stereo source) with len samples each and return 1, or return 0 if the source is silent through the cycle. The caller takes ownership of the allocated SoundSource, and should free it with
+
+playdate->system->realloc(source, 0);
+
+when it is not longer in use.
+
+PDSynthSignalValue* playdate->sound->channel->getDryLevelSignal(SoundChannel* channel)
+
+Returns a signal that follows the volume of the channel before effects are applied.
+
+PDSynthSignalValue* playdate->sound->channel->getWetLevelSignal(SoundChannel* channel)
+
+Returns a signal that follows the volume of the channel after effects are applied.
+SoundSource
+
+SoundSource is the parent class of FilePlayer, SamplePlayer, PDSynth, DelayLineTap, and PDSynthInstrument. Any objects of those types can be cast to SoundSource type and used in these functions.
+
+void playdate->sound->source->setVolume(SoundSource* c, float lvol, float rvol)
+
+Sets the playback volume (0.0 - 1.0) for left and right channels of the source.
+
+void playdate->sound->source->getVolume(SoundSource* c, float* outlvol, float* outrvol)
+
+Gets the playback volume (0.0 - 1.0) for left and right channels of the source.
+
+int playdate->sound->source->isPlaying(SoundSource* c)
+
+Returns 1 if the source is currently playing.
+
+void playdate->sound->source->setCompletionCallback(SoundSource* c, sndCallbackProc callback, void* userdata)
+
+sndCallbackProc
+
+int sndCallbackProc(SoundSource* c, void* userdata);
+
+Sets a function to be called when the source has finished playing.
+AudioSample
+
+AudioSample* playdate->sound->sample->newSampleBuffer(int length)
+
+Allocates and returns a new AudioSample with a buffer large enough to load a file of length bytes.
+
+void playdate->sound->sample->loadIntoSample(AudioSample* sample, const char* path)
+
+Loads the sound data from the file at path into an existing AudioSample, sample.
+
+AudioSample* playdate->sound->sample->load(const char* path)
+
+Allocates and returns a new AudioSample, with the sound data loaded in memory. If there is no file at path, the function returns null.
+
+int playdate->sound->sample->decompress(void)
+
+If the sample is ADPCM compressed, decompresses the sample data to 16-bit PCM data. This increases the sample’s memory footprint by 4x and does not affect the quality in any way, but it is necessary if you want to use the sample in a synth or play the file backwards. Returns 1 if successful, 0 if there’s not enough memory for the uncompressed data.
+
+AudioSample* playdate->sound->sample->newSampleFromData(uint8_t* data, SoundFormat format, uint32_t sampleRate, int byteCount, int shouldFreeData)
+
+Returns a new AudioSample referencing the given audio data. If shouldFreeData is set, data is freed when the sample object is freed. The sample keeps a pointer to the data instead of copying it, so the data must remain valid while the sample is active. format is one of the following values:
+
+SoundFormat
+
+typedef enum
+{
+	kSound8bitMono = 0,
+	kSound8bitStereo = 1,
+	kSound16bitMono = 2,
+	kSound16bitStereo = 3,
+	kSoundADPCMMono = 4,
+	kSoundADPCMStereo = 5
+} SoundFormat;
+
+pd_api_sound.h also provides some helper macros and functions:
+
+#define SoundFormatIsStereo(f) ((f)&1)
+#define SoundFormatIs16bit(f) ((f)>=kSound16bitMono)
+static inline uint32_t SoundFormat_bytesPerFrame(SoundFormat fmt);
+
+void playdate->sound->sample->getData(AudioSample* sample, uint8_t** data, SoundFormat* format, uint32_t* sampleRate, uint32_t* bytelength)
+
+Retrieves the sample’s data, format, sample rate, and data length.
+
+void playdate->sound->sample->freeSample(AudioSample* sample)
+
+Frees the given sample. If the sample was created with playdate→sound→sample→newSampleFromData() and the shouldFreeData flag was set, the sample’s source data is also freed.
+
+float playdate->sound->sample->getLength(AudioSample* sample)
+
+Returns the length, in seconds, of sample.
+FilePlayer
+
+FilePlayer* playdate->sound->fileplayer->newPlayer(void);
+
+Allocates a new FilePlayer.
+
+void playdate->sound->fileplayer->freePlayer(FilePlayer* player);
+
+int playdate->sound->fileplayer->loadIntoPlayer(FilePlayer* player, const char* path);
+
+Prepares player to stream the file at path. Returns 1 if the file exists, otherwise 0.
+
+void playdate->sound->fileplayer->pause(FilePlayer* player);
+
+int playdate->sound->fileplayer->play(FilePlayer* player, int repeat);
+
+Starts playing the file player. If repeat is greater than one, it loops the given number of times. If zero, it loops endlessly until it is stopped with playdate->sound->fileplayer->stop(). Returns 1 on success, 0 if buffer allocation failed.
+
+int playdate->sound->fileplayer->isPlaying(FilePlayer* player);
+
+Returns one if player is playing, zero if not.
+
+void playdate->sound->fileplayer->setBufferLength(FilePlayer* player, float bufferLen);
+
+Sets the buffer length of player to bufferLen seconds;
+
+float playdate->sound->fileplayer->getLength(FilePlayer* player);
+
+Returns the length, in seconds, of the file loaded into player.
+
+void playdate->sound->fileplayer->setFinishCallback(FilePlayer* player, sndCallbackProc callback, void* userdata);
+
+Sets a function to be called when playback has completed. This is an alias for playdate→sound→source→setFinishCallback().
+
+sndCallbackProc
+
+typedef void sndCallbackProc(SoundSource* c, void* userdata);
+
+int playdate->sound->fileplayer->didUnderrun(FilePlayer* player);
+
+Returns one if player has underrun, zero if not.
+
+void playdate->sound->fileplayer->setLoopRange(FilePlayer* player, float start, float end);
+
+Sets the start and end of the loop region for playback, in seconds. If end is omitted, the end of the file is used.
+
+void playdate->sound->fileplayer->setOffset(FilePlayer* player, float offset);
+
+Sets the current offset in seconds.
+
+float playdate->sound->fileplayer->getOffset(FilePlayer* player);
+
+Returns the current offset in seconds for player.
+
+void playdate->sound->fileplayer->setRate(FilePlayer* player, float rate)
+
+Sets the playback rate for the player. 1.0 is normal speed, 0.5 is down an octave, 2.0 is up an octave, etc. Unlike sampleplayers, fileplayers can’t play in reverse (i.e., rate < 0).
+
+float playdate->sound->fileplayer->getRate(FilePlayer* player)
+
+Returns the playback rate for player.
+
+void playdate->sound->fileplayer->setStopOnUnderrun(FilePlayer* player, int flag)
+
+If flag evaluates to true, the player will restart playback (after an audible stutter) as soon as data is available.
+
+void playdate->sound->fileplayer->setVolume(FilePlayer* player, float left, float right);
+
+Sets the playback volume for left and right channels of player.
+
+void playdate->sound->fileplayer->getVolume(FilePlayer* player, float* outleft, float* outright);
+
+Gets the left and right channel playback volume for player.
+
+void playdate->sound->fileplayer->stop(FilePlayer* player);
+
+void playdate->sound->fileplayer->fadeVolume(FilePlayer* player, float left, float right, int32_t len, sndCallbackProc finishCallback, void* userdata);
+
+Changes the volume of the fileplayer to left and right over a length of len sample frames, then calls the provided callback (if set).
+SamplePlayer
+
+float playdate->sound->sampleplayer->getLength(SamplePlayer* player)
+
+Returns the length, in seconds, of the sample assigned to player.
+
+int playdate->sound->sampleplayer->isPlaying(SamplePlayer* player)
+
+Returns one if player is playing a sample, zero if not.
+
+SamplePlayer* playdate->sound->sampleplayer->newPlayer(void)
+
+Allocates and returns a new SamplePlayer.
+
+int playdate->sound->sampleplayer->play(SamplePlayer* player, int repeat, float rate)
+
+Starts playing the sample in player.
+
+If repeat is greater than one, it loops the given number of times. If zero, it loops endlessly until it is stopped with playdate->sound->sampleplayer->stop(). If negative one, it does ping-pong looping.
+
+rate is the playback rate for the sample; 1.0 is normal speed, 0.5 is down an octave, 2.0 is up an octave, etc.
+
+Returns 1 on success (which is always, currently).
+
+void playdate->sound->sampleplayer->setFinishCallback(SamplePlayer* player, sndCallbackProc callback, void* userdata)
+
+Sets a function to be called when playback has completed. See sndCallbackProc.
+
+void playdate->sound->sampleplayer->setOffset(SamplePlayer* player, float offset)
+
+Sets the current offset of the SamplePlayer, in seconds.
+
+float playdate->sound->sampleplayer->getOffset(SamplePlayer* player);
+
+Returns the current offset in seconds for player.
+
+void playdate->sound->sampleplayer->setPlayRange(SamplePlayer* player, int start, int end)
+
+When used with a repeat of -1, does ping-pong looping, with a start and end position in frames.
+
+void playdate->sound->sampleplayer->setPaused(SamplePlayer* player, int paused)
+
+Pauses or resumes playback.
+
+void playdate->sound->sampleplayer->setRate(SamplePlayer* player, float rate)
+
+Sets the playback rate for the player. 1.0 is normal speed, 0.5 is down an octave, 2.0 is up an octave, etc. A negative rate produces backwards playback for PCM files, but does not work for ADPCM-encoded files.
+
+float playdate->sound->sampleplayer->getRate(SamplePlayer* player)
+
+Returns the playback rate for player.
+
+void playdate->sound->sampleplayer->setSample(SamplePlayer* player, AudioSample* sample)
+
+Assigns sample to player.
+
+void playdate->sound->sampleplayer->setVolume(SamplePlayer* player, float left, float right)
+
+Sets the playback volume for left and right channels.
+
+void playdate->sound->sampleplayer->getVolume(SamplePlayer* player, float* outleft, float* outright)
+
+Gets the current left and right channel volume of the sampleplayer.
+
+void playdate->sound->sampleplayer->stop(SamplePlayer* player)
+
+Stops playing the sample.
+
+void playdate->sound->sampleplayer->freePlayer(SamplePlayer* player)
+PDSynth
+
+PDSynth* playdate->sound->synth->newSynth(void)
+
+Creates a new synth object.
+
+void playdate->sound->synth->freeSynth(PDSynth* synth)
+
+Frees a synth object, first removing it from the sound engine if needed.
+
+PDSynth* playdate->sound->synth->copy(PDSynth* synth)
+
+Returns a copy of the given synth. Caller assumes ownership of the returned object and should free it when it is no longer in use.
+
+void playdate->sound->synth->setWaveform(PDSynth* synth, SoundWaveform wave)
+
+Sets the waveform of the synth. The SoundWaveform enum contains the following values:
+
+SoundWaveform
+
+typedef enum
+{
+	kWaveformSquare,
+	kWaveformTriangle,
+	kWaveformSine,
+	kWaveformNoise,
+	kWaveformSawtooth,
+	kWaveformPOPhase,
+	kWaveformPODigital,
+	kWaveformPOVosim
+} SoundWaveform;
+
+void playdate->sound->synth->setGenerator(PDSynth* synth, int stereo, synthRenderFunc* render, synthNoteOnFunc* noteOn, synthReleaseFunc* release, synthSetParameterFunc* setparam, synthDeallocFunc* dealloc, synthCopyUserdataFunc copyUserdata, void* userdata)
+
+GeneratorCallbacks
+
+typedef int (*synthRenderFunc)(void* userdata, int32_t* left, int32_t* right, int nsamples, uint32_t rate, int32_t drate);
+typedef void (*synthNoteOnFunc)(void* userdata, MIDINote note, float velocity, float len); // len == -1 if indefinite
+typedef void (*synthReleaseFunc)(void* userdata, int endoffset);
+typedef int (*synthSetParameterFunc)(void* userdata, int parameter, float value);
+typedef void (*synthDeallocFunc)(void* userdata);
+typedef void* (*synthCopyUserdata)(void* userdata);
+
+Provides custom waveform generator functions for the synth. These functions are called on the audio render thread, so they should return as quickly as possible. synthRenderFunc, the data provider callback, is the only required function.
+
+synthRenderFunc: called every audio cycle to get the samples for playback. left (and right if setGenerator() was called with the stereo flag set) are sample buffers in Q8.24 format. rate is the amount to change a (Q32) phase accumulator each sample, and drate is the amount to change rate each sample. Custom synths can ignore this and use the note paramter in the noteOn function to handle pitch, but synth→setFrequencyModulator() won’t work as expected.
+
+synthNoteOnFunc: called when the synth receives a note on event. len is the length of the note in seconds, or -1 if it’s not known yet when the note will end.
+
+synthReleaseFunc: called when the synth receives a note off event. endoffset is how many samples into the current render cycle the note ends, allowing for sample-accurate timing.
+
+synthSetParameterFunc: called when a parameter change is received from synth→setParameter() or a modulator.
+
+synthDeallocFunc: called when the synth is being dealloced. This function should free anything that was allocated for the synth and also free the userdata itself.
+
+synthCopyUserdata: called when synth→copy() needs a unique copy of the synth’s userdata. External objects should be retained or copied so that the object isn’t freed while the synth is still using it.
+
+void playdate->sound->synth->setSample(PDSynth* synth, AudioSample* sample, uint32_t sustainStart, uint32_t sustainEnd)
+
+Provides a sample for the synth to play. Sample data must be uncompressed PCM, not ADPCM. If a sustain range is set, it is looped while the synth is playing a note. When the note ends, if an envelope has been set on the synth and the sustain range goes to the end of the sample (i.e. there’s no release section of the sample after the sustain range) then the sustain section continues looping during the envelope release; otherwise it plays through the end of the sample and stops. As a convenience, if sustainEnd is zero and sustainStart is greater than zero, sustainEnd will be set to the length of the sample.
+
+int playdate->sound->synth->setWavetable(PDSynth* synth, AudioSample* sample, int log2size, int columns, rows)
+
+Sets a wavetable for the synth to play. Sample data must be 16-bit mono uncompressed. log2size is the base 2 logarithm of the number of samples in each waveform "cell" in the table, and columns and rows gives the number of cells in each direction; for example, if the wavetable is arranged in an 8x8 grid, columns and rows are both 8 and log2size is 6, since 2^6 = 8x8.
+
+The function returns 1 on success. If it fails, use playdate→sound→getError() to get a human-readable error message.
+
+The synth’s "position" in the wavetable is set manually with setParameter() or automated with setParameterModulator(). In some cases it’s easier to use a parameter that matches the waveform position in the table, in others (notably when using envelopes and lfos) it’s more convenient to use a 0-1 scale, so there’s some redundancy here. Parameters are
+
+    1: x position, values are from 0 to the table width
+
+    2: x position, values are from 0 to 1, parameter is scaled up to table width
+
+For 2-D tables (height > 1):
+
+    3: y position, values are from 0 to the table height
+
+    4: y position, values are from 0 to 1, parameter is scaled up to table height
+
+void playdate->sound->synth->setAttackTime(PDSynth* synth, float attack)
+
+void playdate->sound->synth->setDecayTime(PDSynth* synth, float decay)
+
+void playdate->sound->synth->setSustainLevel(PDSynth* synth, float sustain)
+
+void playdate->sound->synth->setReleaseTime(PDSynth* synth, float release)
+
+Sets the parameters of the synth’s ADSR envelope.
+
+void playdate->sound->synth->clearEnvelope(PDSynth* synth)
+
+Clears the synth’s envelope settings.
+
+PDSynthEnvelope* playdate->sound->synth->getEnvelope(PDSynth* synth)
+
+Returns the synth’s envelope. The PDSynth object owns this envelope, so it must not be freed.
+
+void playdate->sound->synth->setTranspose(PDSynth* synth, float halfSteps)
+
+Transposes the synth’s output by the given number of half steps. For example, if the transpose is set to 2 and a C note is played, the synth will output a D instead.
+
+void playdate->sound->synth->setFrequencyModulator(PDSynth* synth, PDSynthSignalValue* mod)
+
+Sets a signal to modulate the synth’s frequency. The signal is scaled so that a value of 1 doubles the synth pitch (i.e. an octave up) and -1 halves it (an octave down). Set to NULL to clear the modulator.
+
+PDSynthSignalValue* playdate->sound->synth->getFrequencyModulator(PDSynth* synth)
+
+Returns the currently set frequency modulator.
+
+void playdate->sound->synth->setAmplitudeModulator(PDSynth* synth, PDSynthSignalValue* mod)
+
+Sets a signal to modulate the synth’s output amplitude. Set to NULL to clear the modulator.
+
+PDSynthSignalValue* playdate->sound->synth->getAmplitudeModulator(PDSynth* synth)
+
+Returns the currently set amplitude modulator.
+
+void playdate->sound->synth->playNote(PDSynth* synth, float freq, float vel, float len, uint32_t when)
+
+Plays a note on the synth, at the given frequency. Specify len = -1 to leave the note playing until a subsequent noteOff() call. If when is 0, the note is played immediately, otherwise the note is scheduled for the given time. Use playdate→sound→getCurrentTime() to get the current time.
+
+void playdate->sound->synth->playMIDINote(PDSynth* synth, MIDINote note, float vel, float len, uint32_t when)
+
+The same as playNote but uses MIDI note (where 60 = C4) instead of frequency. Note that MIDINote is a typedef for `float', meaning fractional values are allowed (for all you microtuning enthusiasts).
+
+void playdate->sound->synth->noteOff(PDSynth* synth, uint32_t when)
+
+Sends a note off event to the synth, either immediately (when = 0) or at the scheduled time.
+
+void playdate->sound->synth->setVolume(PDSynth* synth, float lvol, float rvol)
+
+Sets the playback volume (0.0 - 1.0) for the left and, if the synth is stereo, right channels of the synth. This is equivalent to
+
+playdate->sound->source->setVolume((SoundSource*)synth, lvol, rvol);
+
+float playdate->sound->synth->getVolume(PDSynth* synth, float* outlvol, float* outrvol)
+
+Gets the playback volume for the left and right (if stereo) channels of the synth. This is equivalent to
+
+playdate->sound->source->getVolume((SoundSource*)synth, outlvol, outrvol);
+
+int playdate->sound->synth->isPlaying(PDSynth* synth)
+
+Returns 1 if the synth is currently playing.
+Synth parameters
+
+Some synth types have parameters that can be set manually or driven by a signal, such as an envelope or LFO: On the square waveform the single parameter changes the pulse width; the PO synths have 2 parameters each, changing various aspects of the generator algorithm; and wavetable synths have up to four, described above.
+
+int playdate->sound->synth->getParameterCount(PDSynth* synth)
+
+Returns the number of parameters advertised by the synth.
+
+int playdate->sound->synth->setParameter(PDSynth* synth, int num, float value)
+
+Sets the (1-based) parameter at position num to the given value. Returns 0 if num is not a valid parameter index.
+
+void playdate->sound->synth->setParameterModulator(PDSynth* synth, int num, PDSynthSignalValue* mod)
+
+Sets a signal to modulate the parameter at index num. Set to NULL to clear the modulator.
+
+PDSynthSignalValue* playdate->sound->synth->getParameterModulator(PDSynth* synth, int num)
+
+Returns the currently set parameter modulator for the given index.
+PDSynthInstrument
+
+PDSynthInstrument collects a number of PDSynth objects together to provide polyphony.
+
+PDSynthInstrument* playdate->sound->instrument->newInstrument(void)
+
+Creates a new PDSynthInstrument object.
+
+void playdate->sound->instrument->freeInstrument(PDSynthInstrument* instrument)
+
+Frees the given instrument, first removing it from the sound engine if needed.
+
+int playdate->sound->instrument->addVoice(PDSynthInstrument* instrument, PDSynth* synth, MIDINote rangeStart, MIDINote rangeEnd, float transpose)
+
+Adds the given PDSynth to the instrument. The synth will respond to playNote events between rangeState and rangeEnd, inclusive. The transpose argument is in half-step units, and is added to the instrument’s transpose parameter. The function returns 1 if successful, or 0 if the synth is already in another instrument or channel.
+
+PDSynth* playdate->sound->instrument->playNote(PDSynthInstrument* instrument, float frequency, float vel, float len, uint32_t when)
+
+PDSynth* playdate->sound->instrument->playMIDINote(PDSynthInstrument* instrument, MIDINote note, float vel, float len, uint32_t when)
+
+The instrument passes the playNote/playMIDINote() event to the synth in its collection that has been off for the longest, or has been playing longest if all synths are currently playing. See also playdate→sound→synth→playNote(). The PDSynth that received the playNote event is returned.
+
+void playdate->sound->instrument->noteOff(PDSynthInstrument* instrument, MIDINote note, uint32_t when)
+
+Forwards the noteOff() event to the synth currently playing the given note. See also playdate→sound→synth→noteOff().
+
+void playdate->sound->instrument->setPitchBend(PDSynthInstrument* instrument, float amount)
+
+Sets the pitch bend to be applied to the voices in the instrument, as a fraction of the full range.
+
+void playdate->sound->instrument->setPitchBendRange(PDSynthInstrument* instrument, float halfSteps)
+
+Sets the pitch bend range for the voices in the instrument. The default range is 12, for a full octave.
+
+void playdate->sound->instrument->setTranspose(PDSynthInstrument* instrument, float halfSteps)
+
+Sets the transpose parameter for all voices in the instrument.
+
+void playdate->sound->instrument->allNotesOff(PDSynthInstrument* instrument, uint32_t when)
+
+Sends a noteOff event to all voices in the instrument.
+
+void playdate->sound->instrument->setVolume(PDSynthInstrument* instrument, float lvol, float rvol)
+
+void playdate->sound->instrument->getVolume(PDSynthInstrument* instrument, float* outlvol, float* outrvol)
+
+Sets and gets the playback volume (0.0 - 1.0) for left and right channels of the synth. This is equivalent to
+
+playdate->sound->source->setVolume((SoundSource*)instrument, lvol, rvol);
+playdate->sound->source->getVolume((SoundSource*)instrument, &lvol, &rvol);
+
+int playdate->sound->instrument->activeVoiceCount(PDSynthInstrument* instrument)
+
+Returns the number of voices in the instrument currently playing.
+Signals
+
+A PDSynthSignalValue represents a signal that can be used as a modulator. Its PDSynthSignal subclass is used for "active" signals that change their values automatically. PDSynthLFO and PDSynthEnvelope are subclasses of PDSynthSignal.
+
+PDSynthSignal* playdate->sound->signal->newSignal(signalStepFunc step, signalNoteOnFunc noteOn, signalNoteOffFunc noteOff, signalDeallocFunc dealloc, void* userdata)
+
+SignalCallbacks
+
+typedef float (*signalStepFunc)(void* userdata, int* iosamples, float* ifval);
+typedef void (*signalNoteOnFunc)(void* userdata, MIDINote note, float vel, float len); // len = -1 for indefinite
+typedef void (*signalNoteOffFunc)(void* userdata, int stopped, int offset); // stopped = 0 on note release, = 1 when note actually stops playing; offset is # of frames into the current cycle
+typedef void (*signalDeallocFunc)(void* userdata);
+
+Provides a custom implementation for the signal. signalStepFunc step is the only required function, returning the value at the end of the current frame. When called, the ioframes pointer contains the number of samples until the end of the frame. If the signal needs to provide a value in the middle of the frame (e.g. an LFO that needs to be sample-accurate) it should return the "interframe" value in ifval and set iosamples to the sample offset of the value. The functions are called on the audio render thread, so they should return as quickly as possible.
+
+void playdate->sound->signal->freeSignal(PDSynthSignal* signal);
+
+Frees a signal created with playdate→sound→signal→newSignal().
+
+float playdate->sound->signal->getValue(PDSynthSignal* signal);
+
+Returns the current output value of signal. The signal can be a custom signal created with newSignal(), or any of the PDSynthSignal subclasses.
+
+void playdate->sound->signal->setValueOffset(PDSynthSignal* signal, float offset);
+
+Offsets the signal’s output by the given amount.
+
+void playdate->sound->signal->setValueScale(PDSynthSignal* signal, float scale);
+
+Scales the signal’s output by the given factor. The scale is applied before the offset.
+
+PDSynthSignal* playdate->sound->signal->newSignalForValue(PDSynthSignalValue* value)
+
+Creates a new PDSynthSignal that tracks a PDSynthSignalValue.
+LFO
+
+PDSynthLFO* playdate->sound->lfo->newLFO(LFOType type)
+
+Returns a new LFO object, which can be used to modulate sounds. The type argument is one of the following values:
+
+LFOType
+
+typedef enum
+{
+	kLFOTypeSquare,
+	kLFOTypeTriangle,
+	kLFOTypeSine,
+	kLFOTypeSampleAndHold,
+	kLFOTypeSawtoothUp,
+	kLFOTypeSawtoothDown,
+	kLFOTypeArpeggiator,
+	kLFOTypeFunction
+} LFOType;
+
+void playdate->sound->lfo->freeLFO(PDSynthLFO* lfo)
+
+void playdate->sound->lfo->setType(PDSynthLFO* lfo, LFOType type)
+
+Sets the LFO shape to one of the values given above.
+
+void playdate->sound->lfo->setRate(PDSynthLFO* lfo, float rate)
+
+Sets the LFO’s rate, in cycles per second.
+
+void playdate->sound->lfo->setPhase(PDSynthLFO* lfo, float phase)
+
+Sets the LFO’s phase, from 0 to 1.
+
+void playdate->sound->lfo->setStartPhase(PDSynthLFO* lfo, float phase)
+
+Sets the LFO’s initial phase, from 0 to 1.
+
+void playdate->sound->lfo->setCenter(PDSynthLFO* lfo, float center)
+
+Sets the center value for the LFO.
+
+void playdate->sound->lfo->setDepth(PDSynthLFO* lfo, float depth)
+
+Sets the depth of the LFO.
+
+void playdate->sound->lfo->setArpeggiation(PDSynthLFO* lfo, int nSteps, float* steps)
+
+Sets the LFO type to arpeggio, where the given values are in half-steps from the center note. For example, the sequence (0, 4, 7, 12) plays the notes of a major chord.
+
+void playdate->sound->lfo->setFunction(PDSynthLFO* lfo, float (*lfoFunc)(PDSynthLFO* lfo, void* userdata), void* userdata, int interpolate)
+
+Provides a custom function for LFO values.
+
+void playdate->sound->lfo->setDelay(PDSynthLFO* lfo, float holdoff, float ramptime)
+
+Sets an initial holdoff time for the LFO where the LFO remains at its center value, and a ramp time where the value increases linearly to its maximum depth. Values are in seconds.
+
+void playdate->sound->lfo->setRetrigger(PDSynthLFO* lfo, int flag)
+
+If retrigger is on, the LFO’s phase is reset to its initial phase (default 0) when a synth using the LFO starts playing a note.
+
+float playdate->sound->lfo->getValue(PDSynthLFO* lfo)
+
+Return the current output value of the LFO.
+
+void playdate->sound->lfo->setGlobal(PDSynthLFO* lfo, int global)
+
+If global is set, the LFO is continuously updated whether or not it’s currently in use.
+Envelope
+
+PDSynthEnvelope* playdate->sound->envelope->newEnvelope(float attack, float decay, float sustain, float release)
+
+Creates a new envelope with the given parameters.
+
+void playdate->sound->envelope->freeEnvelope(PDSynthEnvelope* env)
+
+void playdate->sound->envelope->setAttack(PDSynthEnvelope* env, float attack)
+
+void playdate->sound->envelope->setDecay(PDSynthEnvelope* env, float decay)
+
+void playdate->sound->envelope->setSustain(PDSynthEnvelope* env, float sustain)
+
+void playdate->sound->envelope->setRelease(PDSynthEnvelope* env, float release)
+
+Sets the ADSR parameters of the envelope.
+
+void playdate->sound->envelope->setCurvature(PDSynthEnvelope* env, float amount)
+
+Smoothly changes the envelope’s shape from linear (amount=0) to exponential (amount=1).
+
+void playdate->sound->envelope->setVelocitySensitivity(PDSynthEnvelope* env, float velsens)
+
+Changes the amount by which note velocity scales output level. At the default value of 1, output is proportional to velocity; at 0 velocity has no effect on output level.
+
+void playdate->sound->envelope->setRateScaling(PDSynthEnvelope* env, float scaling, MIDINote start, MIDINote end)
+
+Scales the envelope rate according to the played note. For notes below start, the envelope’s set rate is used; for notes above end envelope rates are scaled by the scaling parameter. Between the two notes the scaling factor is interpolated from 1.0 to scaling.
+
+void playdate->sound->envelope->setLegato(PDSynthEnvelope* env, int flag)
+
+Sets whether to use legato phrasing for the envelope. If the legato flag is set, when the envelope is re-triggered before it’s released, it remains in the sustain phase instead of jumping back to the attack phase.
+
+void playdate->sound->envelope->setRetrigger(PDSynthEnvelope* env, int flag)
+
+If retrigger is on, the envelope always starts from 0 when a note starts playing, instead of the current value if it’s active.
+
+float playdate->sound->envelope->getValue(PDSynthEnvelope* env)
+
+Return the current output value of the envelope.
+SoundEffect
+
+SoundEffect is the parent class of the sound effect types TwoPoleFilter, OnePoleFilter, BitCrusher, RingModulator, Overdrive, and DelayLine
+
+SoundEffect* playdate->sound->effect->newEffect(effectProc* proc, void* userdata)
+
+effectProc
+
+typedef int effectProc(SoundEffect* e, int32_t* left, int32_t* right, int nsamples, int bufactive);
+
+Creates a new effect using the given processing function. bufactive is 1 if samples have been set in the left or right buffers. The function should return 1 if it changed the buffer samples, otherwise 0. left and right (if the effect is on a stereo channel) are sample buffers in Q8.24 format.
+
+void playdate->sound->effect->freeEffect(SoundEffect* effect)
+
+void playdate->sound->effect->setMix(SoundEffect* effect, float level)
+
+Sets the wet/dry mix for the effect. A level of 1 (full wet) replaces the input with the effect output; 0 leaves the effect out of the mix (which is useful if you’re using a delay line with taps and don’t want to hear the delay line itself).
+
+void playdate->sound->effect->setMixModulator(SoundEffect* effect, PDSynthSignalValue* signal)
+
+Sets a signal to modulate the effect’s mix level. Set to NULL to clear the modulator.
+
+PDSynthSignalValue* playdate->sound->effect->getMixModulator(SoundEffect* effect)
+
+Returns the current mix modulator for the effect.
+
+void playdate->sound->effect->setUserdata(SoundEffect* effect, void* userdata)
+
+void* playdate->sound->effect->getUserdata(SoundEffect* effect)
+
+Sets or gets a userdata value for the effect.
+TwoPoleFilter
+
+TwoPoleFilter* playdate->sound->effect->twopolefilter->newFilter(void)
+
+Creates a new two pole filter effect.
+
+void playdate->sound->effect->twopolefilter->freeFilter(TwoPoleFilter* filter)
+
+void playdate->sound->effect->twopolefilter->setType(TwoPoleFilter* filter, TwoPoleFilterType type)
+
+TwoPoleFilterType
+
+typedef enum
+{
+	kFilterTypeLowPass,
+	kFilterTypeHighPass,
+	kFilterTypeBandPass,
+	kFilterTypeNotch,
+	kFilterTypePEQ,
+	kFilterTypeLowShelf,
+	kFilterTypeHighShelf
+} TwoPoleFilterType;
+
+Sets the type of the filter.
+
+void playdate->sound->effect->twopolefilter->setFrequency(TwoPoleFilter* filter, float frequency)
+
+Sets the center/corner frequency of the filter. Value is in Hz.
+
+void playdate->sound->effect->twopolefilter->setFrequencyModulator(TwoPoleFilter* filter, PDSynthSignalValue* signal)
+
+Sets a signal to modulate the effect’s frequency. The signal is scaled so that a value of 1.0 corresponds to half the sample rate. Set to NULL to clear the modulator.
+
+PDSynthSignalValue* playdate->sound->effect->twopolefilter->getFrequencyModulator(TwoPoleFilter* filter)
+
+Returns the filter’s current frequency modulator.
+
+void playdate->sound->effect->twopolefilter->setGain(TwoPoleFilter* filter, float gain)
+
+void playdate->sound->effect->twopolefilter->setResonance(TwoPoleFilter* filter, float resonance)
+
+Sets the filter resonance.
+
+void playdate->sound->effect->twopolefilter->setResonanceModulator(TwoPoleFilter* filter, PDSynthSignalValue* signal)
+
+Sets a signal to modulate the filter resonance. Set to NULL to clear the modulator.
+
+PDSynthSignalValue* playdate->sound->effect->twopolefilter->getResonanceModulator(TwoPoleFilter* filter)
+
+Returns the filter’s current resonance modulator.
+OnePoleFilter
+
+The one pole filter is a simple low/high pass filter, with a single parameter describing the cutoff frequency.
+
+OnePoleFilter* playdate->sound->effect->onepolefilter->newFilter(void)
+
+Creates a new one pole filter.
+
+void playdate->sound->effect->onepolefilter->freeFilter(OnePoleFilter* filter)
+
+void playdate->sound->effect->onepolefilter->setParameter(OnePoleFilter* filter, float parameter)
+
+Sets the filter’s single parameter (cutoff frequency) to p. Values above 0 (up to 1) are high-pass, values below 0 (down to -1) are low-pass.
+
+void playdate->sound->effect->onepolefilter->setParameterModulator(OnePoleFilter* filter, PDSynthSignalValue* signal)
+
+Sets a signal to modulate the filter parameter. Set to NULL to clear the modulator.
+
+PDSynthSignalValue* playdate->sound->effect->onepolefilter->getParameterModulator(OnePoleFilter* filter)
+
+Returns the filter’s current parameter modulator.
+BitCrusher
+
+BitCrusher* playdate->sound->effect->bitcrusher->newBitCrusher(void)
+
+Returns a new BitCrusher effect.
+
+void playdate->sound->effect->bitcrusher->freeBitCrusher(BitCrusher* filter)
+
+void playdate->sound->effect->bitcrusher->setAmount(BitCrusher* filter, float amount)
+
+Sets the amount of crushing to amount. Valid values are 0 (no effect) to 1 (quantizing output to 1-bit).
+
+void playdate->sound->effect->bitcrusher->setAmountModulator(BitCrusher* filter, PDSynthSignalValue* signal)
+
+Sets a signal to modulate the crushing amount. Set to NULL to clear the modulator.
+
+PDSynthSignalValue* playdate->sound->effect->bitcrusher->getAmountModulator(BitCrusher* filter)
+
+Returns the currently set modulator.
+
+void playdate->sound->effect->bitcrusher->setUndersampling(BitCrusher* filter, float undersample)
+
+Sets the number of samples to repeat, quantizing the input in time. A value of 0 produces no undersampling, 1 repeats every other sample, etc.
+
+void playdate->sound->effect->bitcrusher->setUndersampleModulator(BitCrusher* filter, PDSynthSignalValue* signal)
+
+Sets a signal to modulate the undersampling amount. Set to NULL to clear the modulator.
+
+PDSynthSignalValue* playdate->sound->effect->bitcrusher->getUndersampleModulator(BitCrusher* filter)
+
+Returns the currently set modulator.
+RingModulator
+
+RingModulator* playdate->sound->effect->ringmodulator->newRingmod(void)
+
+Returns a new ring modulator effect.
+
+[[f-sound.effect.ringmodulator.freeRingmod] .void playdate->sound->effect->ringmodulator->freeRingmod(RingModulator* filter)+*`
+
+void playdate->sound->effect->ringmodulator->setFrequency(RingModulator* filter, float frequency)
+
+Sets the frequency of the modulation signal.
+
+void playdate->sound->effect->ringmodulator->setFrequencyModulator(RingModulator* filter, PDSynthSignalValue* signal)
+
+Sets a signal to modulate the frequency of the ring modulator. Set to NULL to clear the modulator.
+
+PDSynthSignalValue* playdate->sound->effect->ringmodulator->getFrequencyModulator(RingModulator* filter)
+
+Returns the currently set frequency modulator.
+Overdrive
+
+Overdrive* playdate->sound->effect->overdrive->newOverdrive(void)
+
+Returns a new overdrive effect.
+
+void playdate->sound->effect->overdrive->freeOverdrive(Overdrive* filter)
+
+void playdate->sound->effect->overdrive->setGain(Overdrive* filter, float gain)
+
+Sets the gain of the overdrive effect.
+
+void playdate->sound->effect->overdrive->setLimit(Overdrive* filter, float limit)
+
+Sets the level where the amplified input clips.
+
+void playdate->sound->effect->overdrive->setLimitModulator(Overdrive* filter, PDSynthSignalValue* signal)
+
+Sets a signal to modulate the limit parameter. Set to NULL to clear the modulator.
+
+PDSynthSignalValue* playdate->sound->effect->overdrive->getLimitModulator(RingMoOverdrivedulator* filter)
+
+Returns the currently set limit modulator.
+
+void playdate->sound->effect->overdrive->setOffset(Overdrive* filter, float offset)
+
+Adds an offset to the upper and lower limits to create an asymmetric clipping.
+
+void playdate->sound->effect->overdrive->setOffsetModulator(Overdrive* filter, PDSynthSignalValue* signal)
+
+Sets a signal to modulate the offset parameter. Set to NULL to clear the modulator.
+
+PDSynthSignalValue* playdate->sound->effect->overdrive->getOffsetModulator(RingMoOverdrivedulator* filter)
+
+Returns the currently set offset modulator.
+DelayLine
+
+DelayLine* playdate->sound->effect->delayline->newDelayLine(int length, int stereo)
+
+Creates a new delay line effect. The length parameter is given in samples.
+
+void playdate->sound->effect->delayline->freeDelayLine(DelayLine* delay)
+
+void playdate->sound->effect->delayline->setLength(DelayLine* d, int frames)
+
+Changes the length of the delay line, clearing its contents. This function reallocates the audio buffer, so it is not safe to call while the delay line is in use.
+
+void playdate->sound->effect->delayline->setFeedback(DelayLine* d, float fb)
+
+Sets the feedback level of the delay line.
+
+DelayLineTap* playdate->sound->effect->delayline->addTap(DelayLine* d, int delay)
+
+Returns a new tap on the delay line, at the given position. delay must be less than or equal to the length of the delay line.
+DelayLineTap
+
+Note that DelayLineTap is a SoundSource, not a SoundEffect. A delay line tap can be added to any channel, not only the channel the delay line is on.
+
+void playdate->sound->effect->delayline->freeTap(DelayLineTap* tap)
+
+Frees a tap previously created with playdate→sound→delayline→addTap(), first removing it from the sound engine if needed.
+
+void playdate->sound->effect->delayline->setTapDelay(DelayLineTap* tap, int frames)
+
+Sets the position of the tap on the delay line, up to the delay line’s length.
+
+void playdate->sound->effect->delayline->setTapDelayModulator(DelayLineTap* tap, PDSynthSignalValue* mod)
+
+Sets a signal to modulate the tap delay. If the signal is continuous (e.g. an envelope or a triangle LFO, but not a square LFO) playback is sped up or slowed down to compress or expand time. Set to NULL to clear the modulator.
+
+PDSynthSignalValue* playdate->sound->effect->delayline->getTapDelayModulator(DelayLineTap* tap)
+
+Returns the current delay modulator.
+
+void playdate->sound->effect->delayline->setTapChannelsFlipped(DelayLineTap* tap, int flip)
+
+If the delay line is stereo and flip is set, the tap outputs the delay line’s left channel to its right output and vice versa.
+SoundSequence
+
+SoundSequence* playdate->sound->sequence->newSequence(void)
+
+void playdate->sound->sequence->freeSequence(SoundSequence* sequence)
+
+Creates or destroys a SoundSequence object.
+
+int playdate->sound->sequence->loadMIDIFile(SoundSequence* sequence, const char* path)
+
+If the sequence is empty, attempts to load data from the MIDI file at path into the sequence. Returns 1 on success, 0 on failure.
+
+void playdate->sound->sequence->play(SoundSequence* sequence, SequenceFinishedCallback finishCallback, void* userdata)
+
+void playdate->sound->sequence->stop(SoundSequence* sequence)
+
+Starts or stops playing the sequence. finishCallback is an optional function to be called when the sequence finishes playing or is stopped.
+
+SequenceFinishedCallback
+
+typedef void (*SequenceFinishedCallback)(SoundSequence* seq, void* userdata);
+
+int playdate->sound->sequence->isPlaying(SoundSequence* sequence)
+
+Returns 1 if the sequence is currently playing, otherwise 0.
+
+uint32_t playdate->sound->sequence->getTime(SoundSequence* sequence)
+
+void playdate->sound->sequence->setTime(SoundSequence* sequence, uint32_t time)
+
+Gets or sets the current time in the sequence, in samples since the start of the file. Note that which step this moves the sequence to depends on the current tempo.
+
+void playdate->sound->sequence->setLoops(SoundSequence* sequence, int startstep, int endstep, int loops)
+
+Sets the looping range of the sequence. If loops is 0, the loop repeats endlessly.
+
+float playdate->sound->sequence->getTempo(SoundSequence* sequence)
+
+void playdate->sound->sequence->setTempo(SoundSequence* sequence, float stepsPerSecond)
+
+Sets or gets the tempo of the sequence, in steps per second.
+
+int playdate->sound->sequence->getLength(SoundSequence* sequence)
+
+Returns the length of the longest track in the sequence, in steps. See also playdate.sound.track.getLength().
+
+int playdate->sound->sequence->getTrackCount(SoundSequence* sequence)
+
+Returns the number of tracks in the sequence.
+
+SequenceTrack* playdate->sound->sequence->addTrack(SoundSequence* sequence)
+
+Adds the given playdate.sound.track to the sequence.
+
+SequenceTrack* playdate->sound->sequence->getTrackAtIndex(SoundSequence* sequence, unsigned int idx)
+
+void playdate->sound->sequence->setTrackAtIndex(SoundSequence* sequence, SequenceTrack* track, unsigned int idx)
+
+Sets or gets the given SoundTrack object at position idx in the sequence.
+
+void playdate->sound->sequence->allNotesOff(SoundSequence* sequence)
+
+Sends a stop signal to all playing notes on all tracks.
+
+int playdate->sound->sequence->getCurrentStep(SoundSequence* sequence, int* timeOffset)
+
+Returns the step number the sequence is currently at. If timeOffset is not NULL, its contents are set to the current sample offset within the step.
+
+void playdate->sound->sequence->setCurrentStep(SoundSequence* seq, int step, int timeOffset, int playNotes)
+
+Set the current step for the sequence. timeOffset is a sample offset within the step. If playNotes is set, notes at the given step (ignoring timeOffset) are played.
+ControlSignal
+
+ControlSignal is a subclass of PDSynthSignal used for sequencing changes to parameters.
+
+ControlSignal* playdate->sound->controlsignal->newSignal(void)
+
+Creates a new control signal object.
+
+void playdate->sound->controlsignal->freeSignal(ControlSignal* signal)
+
+void playdate->sound->controlsignal->clearEvents(ControlSignal* signal)
+
+Clears all events from the given signal.
+
+void playdate->sound->controlsignal->addEvent(ControlSignal* signal, int step, float value, int interpolate)
+
+Adds a value to the signal’s timeline at the given step. If interpolate is set, the value is interpolated between the previous step+value and this one.
+
+void playdate->sound->controlsignal->removeEvent(ControlSignal* signal, int step)
+
+Removes the control event at the given step.
+
+int playdate->sound->controlsignal->getMIDIControllerNumber(ControlSignal* signal)
+
+Returns the MIDI controller number for this ControlSignal, if it was created from a MIDI file via playdate→sound→sequence→loadMIDIFile().
+SequenceTrack
+
+A SequenceTrack comprises a PDSynthInstrument, a sequence of notes to play on that instrument, and any number of ControlSignal objects to control parameter changes.
+
+SequenceTrack* playdate->sound->track->newTrack(void)
+
+Returns a new SequenceTrack.
+
+void playdate->sound->track->freeTrack(SequenceTrack* track)
+
+void playdate->sound->track->setInstrument(SequenceTrack* track, PDSynthInstrument* instrument)
+
+PDSynthInstrument* playdate->sound->track->getInstrument(SequenceTrack* track)
+
+Sets or gets the PDSynthInstrument assigned to the track.
+
+void playdate->sound->track->addNoteEvent(SequenceTrack* track, uint32_t step, uint32_t length, MIDINote note, float vel)
+
+Adds a single note event to the track.
+
+void playdate->sound->track->removeNoteEvent(SequenceTrack* track, uint32_t step, MIDINote note)
+
+Removes the event at step playing note.
+
+void playdate->sound->track->clearNotes(SequenceTrack* track)
+
+Clears all notes from the track.
+
+int playdate->sound->track->getLength(SequenceTrack* track)
+
+Returns the length, in steps, of the track—​that is, the step where the last note in the track ends.
+
+int playdate->sound->track->getIndexForStep(SequenceTrack* track, uint32_t step)
+
+Returns the internal array index for the first note at the given step.
+
+int playdate->sound->track->getNoteAtIndex(SequenceTrack* track, int index, uint32_t* outStep, uint32_t* outLen, MIDINote* outNote, float* outVelocity)
+
+If the given index is in range, sets the data in the out pointers and returns 1; otherwise, returns 0.
+
+void playdate->sound->track->getControlSignalCount(SequenceTrack* track)
+
+Returns the number of ControlSignal objects in the track.
+
+void playdate->sound->track->getControlSignal(SequenceTrack* track, int idx)
+
+Returns the ControlSignal at index idx.
+
+void playdate->sound->track->getSignalForController(SequenceTrack* track, int controller, int create)
+
+Returns the ControlSignal for MIDI controller number controller, creating it if the create flag is set and it doesn’t yet exist.
+
+void playdate->sound->track->clearControlEvents(SequenceTrack* track)
+
+Clears all ControlSignals from the track.
+
+int playdate->sound->track->activeVoiceCount(SequenceTrack* track)
+
+Returns the number of voices currently playing in the track’s instrument.
+
+int playdate->sound->track->getPolyphony(SequenceTrack* track)
+
+Returns the maximum number of simultaneously playing notes in the track. (Currently, this value is only set when the track was loaded from a MIDI file. We don’t yet track polyphony for user-created events.)
+
+void playdate->sound->track->setMuted(SequenceTrack* track, int mute)
+
+Mutes or unmutes the track.
+7.3. Display
+
+int playdate->display->getHeight(void)
+
+Returns the height of the display, taking the current scale into account; e.g., if the scale is 2, this function returns 120 instead of 240.
+
+int playdate->display->getWidth(void)
+
+Returns the width of the display, taking the current scale into account; e.g., if the scale is 2, this function returns 200 instead of 400.
+
+void playdate->display->setInverted(int flag)
+
+If flag evaluates to true, the frame buffer is drawn inverted—black instead of white, and vice versa.
+
+void playdate->display->setMosaic(unsigned int x, unsigned int y)
+
+Adds a mosaic effect to the display. Valid x and y values are between 0 and 3, inclusive.
+
+void playdate->display->setFlipped(int x, int y)
+
+Flips the display on the x or y axis, or both.
+
+void playdate->display->setRefreshRate(float rate)
+
+Sets the nominal refresh rate in frames per second. The default is 30 fps, which is a recommended figure that balances animation smoothness with performance and power considerations. Maximum is 50 fps.
+
+If rate is 0, the game’s update callback (either Lua’s playdate.update() or the function specified by playdate→system→setUpdateCallback()) is called as soon as possible. Since the display refreshes line-by-line, and unchanged lines aren’t sent to the display, the update cycle will be faster than 30 times a second but at an indeterminate rate.
+
+void playdate->display->setScale(unsigned int s)
+
+Sets the display scale factor. Valid values for scale are 1, 2, 4, and 8.
+
+The top-left corner of the frame buffer is scaled up to fill the display; e.g., if the scale is set to 4, the pixels in rectangle [0,100] x [0,60] are drawn on the screen as 4 x 4 squares.
+
+void playdate->display->setOffset(int dx, int dy)
+
+Offsets the display by the given amount. Areas outside of the displayed area are filled with the current background color.
+7.4. Filesystem
+
+const char* playdate->file->geterr(void);
+
+Returns human-readable text describing the most recent error (usually indicated by a -1 return from a filesystem function).
+
+int playdate->file->listfiles(const char* path, void (*callback)(const char* filename, void* userdata), void* userdata, int showhidden);
+
+Calls the given callback function for every file at path. Subfolders are indicated by a trailing slash '/' in filename. listfiles() does not recurse into subfolders. If showhidden is set, files beginning with a period will be included; otherwise, they are skipped. Returns 0 on success, -1 if no folder exists at path or it can’t be opened.
+
+int playdate->file->unlink(const char* path, int recursive);
+
+Deletes the file at path. Returns 0 on success, or -1 in case of error. If recursive is 1 and the target path is a folder, this deletes everything inside the folder (including folders, folders inside those, and so on) as well as the folder itself.
+
+int playdate->file->mkdir(const char* path);
+
+Creates the given path in the Data/<gameid> folder. It does not create intermediate folders. Returns 0 on success, or -1 in case of error.
+
+int playdate->file->rename(const char* from, const char* to);
+
+Renames the file at from to to. It will overwrite the file at to without confirmation. It does not create intermediate folders. Returns 0 on success, or -1 in case of error.
+
+int playdate->file->stat(const char* path, FileStat* stat);
+
+Populates the FileStat stat with information about the file at path. Returns 0 on success, or -1 in case of error.
+
+FileStat
+
+typedef struct
+{
+	int isdir;
+	unsigned int size;
+	int m_year;
+	int m_month;
+	int m_day;
+	int m_hour;
+	int m_minute;
+	int m_second;
+} FileStat;
+
+File Handles
+
+SDFile* playdate->file->open(const char* path, FileOptions mode);
+
+Opens a handle for the file at path. The kFileRead mode opens a file in the game pdx, while kFileReadData searches the game’s data folder; to search the data folder first then fall back on the game pdx, use the bitwise combination kFileRead|kFileReadData.kFileWrite and kFileAppend always write to the data folder. The function returns NULL if a file at path cannot be opened, and playdate->file->geterr() will describe the error. The filesystem has a limit of 64 simultaneous open files. The returned file handle should be closed, not freed, when it is no longer in use.
+
+FileOptions
+
+typedef enum
+{
+	kFileRead,
+	kFileReadData,
+	kFileWrite,
+	kFileAppend
+} FileOptions;
+
+int playdate->file->close(SDFile* file);
+
+Closes the given file handle. Returns 0 on success, or -1 in case of error.
+
+int playdate->file->flush(SDFile* file);
+
+Flushes the output buffer of file immediately. Returns the number of bytes written, or -1 in case of error.
+
+int playdate->file->read(SDFile* file, void* buf, unsigned int len);
+
+Reads up to len bytes from the file into the buffer buf. Returns the number of bytes read (0 indicating end of file), or -1 in case of error.
+
+int playdate->file->seek(SDFile* file, int pos, int whence);
+
+Sets the read/write offset in the given file handle to pos, relative to the whence macro. SEEK_SET is relative to the beginning of the file, SEEK_CUR is relative to the current position of the file pointer, and SEEK_END is relative to the end of the file. Returns 0 on success, -1 on error.
+
+int playdate->file->tell(SDFile* file);
+
+Returns the current read/write offset in the given file handle, or -1 on error.
+
+int playdate->file->write(SDFile* file, const void* buf, unsigned int len);
+
+Writes the buffer of bytes buf to the file. Returns the number of bytes written, or -1 in case of error.
+7.5. Graphics
+
+The drawing functions use a context stack to select the drawing target, for setting a stencil, changing the draw mode, etc. The stack is unwound at the beginning of each update cycle, with drawing restored to target the display.
+
+void playdate->graphics->pushContext(LCDBitmap* target);
+
+Push a new drawing context for drawing into the given bitmap. If target is NULL, the drawing functions will use the display framebuffer.
+
+void playdate->graphics->popContext(void);
+
+Pops a context off the stack (if any are left), restoring the drawing settings from before the context was pushed.
+
+void playdate->graphics->setStencil(LCDBitmap* stencil);
+
+Sets the stencil used for drawing. For a tiled stencil, use setStencilImage() instead. To clear the stencil, set it to NULL.
+
+void playdate->graphics->setStencilImage(LCDBitmap* stencil, int tile);
+
+Sets the stencil used for drawing. If the tile flag is set the stencil image will be tiled. Tiled stencils must have width equal to a multiple of 32 pixels. To clear the stencil, call playdate→graphics→setStencil(NULL);.
+
+LCDBitmapDrawMode playdate->graphics->setDrawMode(LCDBitmapDrawMode mode);
+
+Sets the mode used for drawing bitmaps. Note that text drawing uses bitmaps, so this affects how fonts are displayed as well. Returns the previous draw mode, in case you need to restore it after drawing.
+
+LCDBitmapDrawMode
+
+typedef enum
+{
+	kDrawModeCopy,
+	kDrawModeWhiteTransparent,
+	kDrawModeBlackTransparent,
+	kDrawModeFillWhite,
+	kDrawModeFillBlack,
+	kDrawModeXOR,
+	kDrawModeNXOR,
+	kDrawModeInverted
+} LCDBitmapDrawMode;
+
+void playdate->graphics->setClipRect(int x, int y, int width, int height);
+
+Sets the current clip rect, using world coordinates—​that is, the given rectangle will be translated by the current drawing offset. The clip rect is cleared at the beginning of each update.
+
+void playdate->graphics->setScreenClipRect(int x, int y, int width, int height);
+
+Sets the current clip rect in screen coordinates.
+
+void playdate->graphics->clearClipRect(void);
+
+Clears the current clip rect.
+
+void playdate->graphics->setLineCapStyle(LCDLineCapStyle endCapStyle);
+
+Sets the end cap style used in the line drawing functions.
+
+LCDLineCapStyle
+
+typedef enum
+{
+	kLineCapStyleButt,
+	kLineCapStyleSquare,
+	kLineCapStyleRound
+} LCDLineCapStyle;
+
+void playdate->graphics->setFont(LCDFont* font);
+
+Sets the font to use in subsequent drawText calls.
+
+void playdate->graphics->setTextTracking(int tracking);
+
+Sets the tracking to use when drawing text.
+
+int playdate->graphics->getTextTracking(void);
+
+Gets the tracking used when drawing text.
+
+void playdate->graphics->setTextLeading(int leading);
+
+Sets the leading adjustment (added to the leading specified in the font) to use when drawing text.
+Supporting types
+
+LCDColor
+
+Either an LCDSolidColor or an LCDPattern*.
+
+LCDSolidColor
+
+typedef enum
+{
+	kColorBlack,
+	kColorWhite,
+	kColorClear,
+	kColorXOR
+} LCDSolidColor;
+
+LCDPattern
+
+typedef uint8_t LCDPattern[16];
+
+LCDBitmapFlip
+
+typedef enum
+{
+	kBitmapUnflipped,
+	kBitmapFlippedX,
+	kBitmapFlippedY,
+	kBitmapFlippedXY
+} LCDBitmapFlip;
+
+LCDRect
+
+typedef struct
+{
+	int left;
+	int right;
+	int top;
+	int bottom;
+} LCDRect;
+
+PDRect
+
+typedef struct
+{
+	float x;
+	float y;
+	float width;
+	float height;
+} PDRect;
+
+Bitmaps
+
+void playdate->graphics->clearBitmap(LCDBitmap* bitmap, LCDColor bgcolor);
+
+Clears bitmap, filling with the given bgcolor.
+
+LCDBitmap* playdate->graphics->copyBitmap(LCDBitmap* bitmap);
+
+Returns a new LCDBitmap that is an exact copy of bitmap.
+
+int playdate->graphics->checkMaskCollision(LCDBitmap* bitmap1, int x1, int y1, LCDBitmapFlip flip1, LCDBitmap* bitmap2, int x2, int y2, LCDBitmapFlip flip2, LCDRect rect);
+
+Returns 1 if any of the opaque pixels in bitmap1 when positioned at x1, y1 with flip1 overlap any of the opaque pixels in bitmap2 at x2, y2 with flip2 within the non-empty rect, or 0 if no pixels overlap or if one or both fall completely outside of rect.
+
+void playdate->graphics->drawBitmap(LCDBitmap* bitmap, int x, int y, LCDBitmapFlip flip);
+
+Draws the bitmap with its upper-left corner at location x, y, using the given flip orientation.
+
+void playdate->graphics->drawScaledBitmap(LCDBitmap* bitmap, int x, int y, float xscale, float yscale);
+
+Draws the bitmap scaled to xscale and yscale with its upper-left corner at location x, y. Note that flip is not available when drawing scaled bitmaps but negative scale values will achieve the same effect.
+
+void playdate->graphics->drawRotatedBitmap(LCDBitmap* bitmap, int x, int y, float degrees, float centerx, float centery, float xscale, float yscale);
+
+Draws the bitmap scaled to xscale and yscale then rotated by degrees with its center as given by proportions centerx and centery at x, y; that is: if centerx and centery are both 0.5 the center of the image is at (x,y), if centerx and centery are both 0 the top left corner of the image (before rotation) is at (x,y), etc.
+
+void playdate->graphics->freeBitmap(LCDBitmap*);
+
+void playdate->graphics->getBitmapData(LCDBitmap* bitmap, int* width, int* height, int* rowbytes, uint8_t** mask, uint8_t** data);
+
+Gets various info about bitmap including its width and height and raw pixel data. The data is 1 bit per pixel packed format, in MSB order; in other words, the high bit of the first byte in data is the top left pixel of the image. If the bitmap has a mask, a pointer to its data is returned in mask, else NULL is returned.
+
+LCDSolidColor playdate->graphics->getBitmapPixel(LCDBitmap* bitmap, int x, int y);
+
+Gets the color of the pixel at (x,y) in the given bitmap. If the coordinate is outside the bounds of the bitmap, or if the bitmap has a mask and the pixel is marked transparent, the function returns kColorClear; otherwise the return value is kColorWhite or kColorBlack.
+
+LCDBitmap* playdate->graphics->loadBitmap(const char* path, const char** outerr);
+
+Allocates and returns a new LCDBitmap from the file at path. If there is no file at path, the function returns null.
+
+void playdate->graphics->loadIntoBitmap(const char* path, LCDBitmap* bitmap, const char** outerr);
+
+Loads the image at path into the previously allocated bitmap.
+
+LCDBitmap* playdate->graphics->newBitmap(int width, int height, LCDColor bgcolor);
+
+Allocates and returns a new width by height LCDBitmap filled with bgcolor.
+
+void playdate->graphics->tileBitmap(LCDBitmap* bitmap, int x, int y, int width, int height, LCDBitmapFlip flip);
+
+Draws the bitmap with its upper-left corner at location x, y tiled inside a width by height rectangle.
+
+LCDBitmap* playdate->graphics->rotatedBitmap(LCDBitmap* bitmap, float rotation, float xscale, float yscale, int* allocedSize);
+
+Returns a new, rotated and scaled LCDBitmap based on the given bitmap.
+
+int playdate->graphics->setBitmapMask(LCDBitmap* bitmap, LCDBitmap* mask);
+
+Sets a mask image for the given bitmap. The set mask must be the same size as the target bitmap.
+
+LCDBitmap* playdate->graphics->getBitmapMask(LCDBitmap* bitmap);
+
+Gets a mask image for the given bitmap, or returns NULL if the bitmap doesn’t have a mask layer. The returned image points to bitmap's data, so drawing into the mask image affects the source bitmap directly. The caller takes ownership of the returned LCDBitmap and is responsible for freeing it when it’s no longer in use.
+BitmapTables
+
+LCDBitmap* playdate->graphics->getTableBitmap(LCDBitmapTable* table, int idx);
+
+Returns the idx bitmap in table, If idx is out of bounds, the function returns NULL.
+
+LCDBitmapTable* playdate->graphics->loadBitmapTable(const char* path, const char** outerr);
+
+Allocates and returns a new LCDBitmap from the file at path. If there is no file at path, the function returns null.
+
+void playdate->graphics->loadIntoBitmapTable(const char* path, LCDBitmapTable* table, const char** outerr);
+
+Loads the imagetable at path into the previously allocated table.
+
+LCDBitmapTable* playdate->graphics->newBitmapTable(int count, int width, int height);
+
+Allocates and returns a new LCDBitmapTable that can hold count width by height LCDBitmaps.
+
+void playdate->graphics->freeBitmapTable(LCDBitmapTable* table);
+
+Frees the given bitmap table. Note that this will invalidate any bitmaps returned by getTableBitmap().
+
+void playdate->graphics->getBitmapTableInfo(LCDBitmapTable* table, int* count, int* cellswide);
+
+Returns the bitmap table’s image count in the count pointer (if not NULL) and number of cells across in the cellswide pointer (ditto).
+Fonts & Text
+
+int playdate->graphics->drawText(const void* text, size_t len, PDStringEncoding encoding, int x, int y);
+
+Draws the given text using the provided options. If no font has been set with setFont, the default system font Asheville Sans 14 Light is used. Note that len is the length of the decoded string—​that is, the number of codepoints in the string, not the number of bytes; however, since the parser stops at the NUL terminator it’s safe to pass strlen(text) in here when you want to draw the entire string.
+
+int playdate->graphics->drawTextInRect(const void* text, size_t len, PDStringEncoding encoding, int x, int y, int width, int height, PDTextWrappingMode wrap, PDTextAlignment align);
+
+Draws the text in the given rectangle using the provided options. If no font has been set with setFont, the default system font Asheville Sans 14 Light is used. See the above note about the len argument.
+
+The wrap argument is one of
+
+PDTextWrappingMode
+
+typedef enum
+{
+	kWrapClip,
+	kWrapCharacter,
+	kWrapWord,
+} PDTextWrappingMode;
+
+and align is one of
+
+PDTextAlignment
+
+typedef enum
+{
+	kAlignTextLeft,
+	kAlignTextCenter,
+	kAlignTextRight
+} PDTextAlignment;
+
+uint8_t playdate->graphics->getFontHeight(LCDFont* font);
+
+Returns the height of the given font.
+
+LCDFontPage* playdate->graphics->getFontPage(LCDFont* font, uint32_t c);
+
+Returns an LCDFontPage object for the given character code. Each LCDFontPage contains information for 256 characters; specifically, if (c1 & ~0xff) == (c2 & ~0xff), then c1 and c2 belong to the same page and the same LCDFontPage can be used to fetch the character data for both instead of searching for the page twice.
+
+LCDFontGlyph* playdate->graphics->getPageGlyph(LCDFontPage* page, uint32_t c, LCDBitmap** bitmap, int* advance);
+
+Returns an LCDFontGlyph object for character c in LCDFontPage page, and optionally returns the glyph’s bitmap and advance value.
+
+int playdate->graphics->getGlyphKerning(LCDFontGlyph* glyph, uint32_t c1, uint32_t c2);
+
+Returns the kerning adjustment between characters c1 and c2 as specified by the font.
+
+int playdate->graphics->getTextWidth(LCDFont* font, const void* text, size_t len, PDStringEncoding encoding, int tracking);
+
+Returns the width of the given text in the given font. See the note above about the len argument.
+
+PDStringEncoding
+
+typedef enum
+{
+	kASCIIEncoding,
+	kUTF8Encoding,
+	k16BitLEEncoding
+} PDStringEncoding;
+
+LCDFont* playdate->graphics->loadFont(const char* path, const char** outErr);
+
+Returns the LCDFont object for the font file at path. In case of error, outErr points to a string describing the error. The returned font can be freed with playdate→system→realloc(font, 0) when it is no longer in use.
+
+LCDFont* playdate->graphics->makeFontFromData(LCDFontData* data, int wide);
+
+Returns an LCDFont object wrapping the LCDFontData data comprising the contents (minus 16-byte header) of an uncompressed pft file. wide corresponds to the flag in the header indicating whether the font contains glyphs at codepoints above U+1FFFF.
+Geometry
+
+void playdate->graphics->drawEllipse(int x, int y, int width, int height, int lineWidth, float startAngle, float endAngle, LCDColor color);
+
+Draws an ellipse inside the rectangle {x, y, width, height} of width lineWidth (inset from the rectangle bounds). If startAngle != _endAngle, this draws an arc between the given angles. Angles are given in degrees, clockwise from due north.
+
+void playdate->graphics->fillEllipse(int x, int y, int width, int height, float startAngle, float endAngle, LCDColor color);
+
+Fills an ellipse inside the rectangle {x, y, width, height}. If startAngle != _endAngle, this draws a wedge/Pacman between the given angles. Angles are given in degrees, clockwise from due north.
+
+void playdate->graphics->drawLine(int x1, int y1, int x2, int y2, int width, LCDColor color);
+
+Draws a line from x1, y1 to x2, y2 with a stroke width of width.
+
+void playdate->graphics->drawRect(int x, int y, int width, int height, LCDColor color);
+
+Draws a width by height rect at x, y.
+
+void playdate->graphics->fillRect(int x, int y, int width, int height, LCDColor color);
+
+Draws a filled width by height rect at x, y.
+
+void playdate->graphics->fillTriangle(int x1, int y1, int x2, int y2, int x3, int y3, LCDColor color);
+
+Draws a filled triangle with points at x1, y1, x2, y2, and x3, y3.
+
+LCDWindingRule
+
+typedef enum
+{
+	kPolygonFillNonZero,
+	kPolygonFillEvenOdd
+} LCDPolygonFillRule;
+
+void playdate->graphics->fillPolygon(int nPoints, int* points, LCDColor color, LCDPolygonFillRule fillrule);
+
+Fills the polygon with vertices at the given coordinates (an array of 2*nPoints ints containing alternating x and y values) using the given color and fill, or winding, rule. See https://en.wikipedia.org/wiki/Nonzero-rule for an explanation of the winding rule. An edge between the last vertex and the first is assumed.
+Miscellaneous
+
+void playdate->graphics->clear(LCDColor color);
+
+Clears the entire display, filling it with color.
+
+void playdate->graphics->setBackgroundColor(LCDColor color);
+
+Sets the background color shown when the display is offset or for clearing dirty areas in the sprite system.
+
+void playdate->graphics->display(void);
+
+Manually flushes the current frame buffer out to the display. This function is automatically called after each pass through the run loop, so there shouldn’t be any need to call it yourself.
+
+LCDBitmap* playdate->graphics->getDebugBitmap(void);
+
+Only valid in the Simulator; function is NULL on device. Returns the debug framebuffer as a bitmap. White pixels drawn in the image are overlaid on the display in 50% transparent red.
+
+uint8_t* playdate->graphics->getDisplayFrame(void);
+
+Returns the raw bits in the display buffer, the last completed frame.
+
+LCDBitmap* playdate->graphics->getDisplayBufferBitmap(void);
+
+Returns a bitmap containing the contents of the display buffer. The system owns this bitmap—​do not free it!
+
+uint8_t* playdate->graphics->getFrame(void);
+
+Returns the current display frame buffer. Rows are 32-bit aligned, so the row stride is 52 bytes, with the extra 2 bytes per row ignored. Bytes are MSB-ordered; i.e., the pixel in column 0 is the 0x80 bit of the first byte of the row.
+
+LCDBitmap* playdate->graphics->copyFrameBufferBitmap(void);
+
+Returns a copy the contents of the working frame buffer as a bitmap. The caller is responsible for freeing the returned bitmap with playdate->graphics->freeBitmap().
+
+PDLanguage playdate->system->getLanguage(void);
+
+Returns the current language of the system.
+
+PDLanguage
+
+typedef enum
+{
+	kPDLanguageEnglish,
+	kPDLanguageJapanese,
+	kPDLanguageUnknown,
+} PDLanguage;
+
+void playdate->graphics->markUpdatedRows(int start, int end);
+
+After updating pixels in the buffer returned by getFrame(), you must tell the graphics system which rows were updated. This function marks a contiguous range of rows as updated (e.g., markUpdatedRows(0,LCD_ROWS-1) tells the system to update the entire display). Both “start” and “end” are included in the range.
+
+void playdate->graphics->setDrawOffset(int dx, int dy);
+
+Offsets the origin point for all drawing calls to x, y (can be negative).
+
+This is useful, for example, for centering a "camera" on a sprite that is moving around a world larger than the screen.
+
+void playdate->graphics->setColorToPattern(LCDColor* color, LCDBitmap* bitmap, int x, int y);
+
+Sets color to an 8 x 8 pattern using the given bitmap. x, y indicates the top left corner of the 8 x 8 pattern.
+
+void playdate->graphics->setPixel(int x, int y, LCDColor color);
+
+Sets the pixel at (x,y) in the current drawing context (by default the screen) to the given color. Be aware that setting a pixel at a time is not very efficient: In our testing, more than around 20,000 calls in a tight loop will drop the frame rate below 30 fps.
+7.6. Video
+
+LCDVideoPlayer playdate->graphics->video->loadVideo(const char* path)
+
+Opens the pdv file at path and returns a new video player object for rendering its frames.
+
+void playdate->graphics->video->freePlayer(LCDVideoPlayer* p)
+
+Frees the given video player.
+
+int playdate->graphics->video->setContext(LCDVideoPlayer* p, LCDBitmap* context)
+
+Sets the rendering destination for the video player to the given bitmap. If the function fails, it returns 0 and sets an error message that can be read via getError().
+
+LCBitmap* playdate->graphics->video->getContext(LCDVideoPlayer* p)
+
+Gets the rendering destination for the video player. If no rendering context has been setallocates a context bitmap with the same dimensions as the vieo will be allocated.
+
+void playdate->graphics->video->useScreenContext(LCDVideoPlayer* p)
+
+Sets the rendering destination for the video player to the screen.
+
+void playdate->graphics->video->renderFrame(LCDVideoPlayer* p, int n)
+
+Renders frame number n into the current context. In case of error, the function returns 0 and sets an error message that can be read via getError().
+
+const char* playdate->graphics->video->getError(LCDVideoPlayer* p)
+
+Returns text describing the most recent error.
+
+void playdate->graphics->video->getInfo(LCDVideoPlayer* p, int* outWidth, int* outHeight, float* outFrameRate, int* outFrameCount, int* outCurrentFrame)
+
+Retrieves information about the video, by passing in (possibly NULL) value pointers.
+7.7. Input
+
+void playdate->system->setPeripheralsEnabled(PDPeripherals mask)
+
+By default, the accelerometer is disabled to save (a small amount of) power. To use a peripheral, it must first be enabled via this function. Accelerometer data is not available until the next update cycle after it’s enabled.
+Accelerometer
+
+void playdate->system->getAccelerometer(float* outx, float* outy, float* outz)
+
+Returns the last-read accelerometer data.
+Buttons
+
+void playdate->system->getButtonState(PDButtons* current, PDButtons* pushed, PDButtons* released)
+
+Sets the value pointed to by current to a bitmask indicating which buttons are currently down. pushed and released reflect which buttons were pushed or released over the previous update cycle—at the nominal frame rate of 50 ms, fast button presses can be missed if you just poll the instantaneous state.
+
+PDButton
+
+kButtonLeft
+kButtonRight
+kButtonUp
+kButtonDown
+kButtonB
+kButtonA
+
+void playdate->system->setButtonCallback(PDButtonCallbackFunction* cb, void* userdata, int queuesize)
+
+As an alternative to polling for button presses using getButtonState(), this function allows a callback function to be set. The function is called for each button up/down event (possibly multiple events on the same button) that occurred during the previous update cycle. At the default 30 FPS, a queue size of 5 should be adequate. At lower frame rates/longer frame times, the queue size should be extended until all button presses are caught. The function should return 0 on success or a non-zero value to signal an error.
+
+PDButtonCallbackFunction
+
+typedef int PDButtonCallbackFunction(PDButtons button, int down, uint32_t when, void* userdata);
+
+Crank
+
+float playdate->system->getCrankAngle(void)
+
+Returns the current position of the crank, in the range 0-360. Zero is pointing up, and the value increases as the crank moves clockwise, as viewed from the right side of the device.
+
+float playdate->system->getCrankChange(void)
+
+Returns the angle change of the crank since the last time this function was called. Negative values are anti-clockwise.
+
+int playdate->system->isCrankDocked(void)
+
+Returns 1 or 0 indicating whether or not the crank is folded into the unit.
+7.8. Device Auto Lock
+
+As of 1.9.1, the device will automatically lock if the user doesn’t press any buttons or use the crank for more than 3 minutes. In order for games that expect longer periods without interaction to continue to function, it is possible to manually disable the auto lock feature. Note that when disabling the timeout, developers should take care to re-enable the timeout when appropiate.
+
+void playdate->system->setAutoLockDisabled(int disable)
+
+Disables or enables the 3 minute auto lock feature. When called, the timer is reset to 3 minutes.
+7.9. System Sounds
+
+0.12 adds sound effects for various system events, such as the menu opening or closing, USB cable plugged or unplugged, and the crank docked or undocked. Since games can receive notification of the crank docking and undocking, and may incorporate this into the game, we’ve provided a function for muting the default sounds for these events:
+
+int playdate->system->setCrankSoundsDisabled(int disable)
+
+The function returns the previous value for this setting.
+7.10. JSON
+Decoding
+
+int playdate->json->decode(struct json_decoder* decoder, json_reader reader, json_value* outval);
+
+int playdate->json->decodeString(struct json_decoder* decoder, const char* jsonString, json_value* outval);
+
+Decodes a JSON file or string with the given decoder. An instance of json_decoder must implement decodeError. The remaining functions are optional although you’ll probably want to implement at least didDecodeTableValue and didDecodeArrayValue. The outval pointer, if set, contains the value retured from the top-level didDecodeSublist callback.
+
+json_decoder
+
+typedef struct json_decoder
+{
+	void (*decodeError)(json_decoder* decoder, const char* error, int linenum);
+	void (*willDecodeSublist)(json_decoder* decoder, const char* name, json_value_type type);
+	int (*shouldDecodeTableValueForKey)(json_decoder* decoder, const char* key);
+	void (*didDecodeTableValue)(json_decoder* decoder, const char* key, json_value value);
+	int (*shouldDecodeArrayValueAtIndex)(json_decoder* decoder, int pos);
+	void (*didDecodeArrayValue)(json_decoder* decoder, int pos, json_value value);
+	void* (*didDecodeSublist)(json_decoder* decoder, const char* name, json_value_type type);
+	void* userdata;
+	int returnString;
+	const char* path;
+} json_decoder;
+
+    decodeError: Called when the decoder encounters an error.
+
+    willDecodeSublist: Called before attempting to decode a JSON object or array.
+
+    didDecodeSublist: Called after successfully decoding a JSON object or array. The returned value is passed to the corresponding didDecodeTableValue() or didDecodeArrayValue() callback one level up, or the calling decode() or decodeString() function if the list is the top-level json object
+
+    shouldDecodeTableValueForKey: Called before decoding a key/value pair from an object. Return 1 to proceed with decoding or return 0 to skip this pair.
+
+    shouldDecodeArrayValueAtIndex: Called before decoding the value at pos from an array (note that pos is base 1 not 0). Return 1 to proceed with decoding or return 0 to skip this index.
+
+    didDecodeTableValue: Called after successfully decoding a key/value pair from an object.
+
+    didDecodeArrayValue: Called after successfully decoding the value at pos from an array.
+
+    userdata: A storage slot for the API client
+
+    returnString: If set in willDecodeSublist, the sublist is returned as a string instead of parsed
+
+    path: The current path in the parse tree. The root scope is named _root, but this is not included in the path when parsing the root’s children
+
+Note that the decoder saves and restores the decoder struct at each level of the tree. This lets you add unique handlers for different sections of the json structure:
+
+void myParser_WillDecodeSublist(json_decoder* decoder, const char* name, json_value_type type)
+{
+	if ( strcmp(name, "widget") == 0 )
+	{
+		Widget* widget = pd_malloc(sizeof(Widget));
+		decoder->userdata = widget;
+		decoder->didDecodeTableValue = setWidgetValue;
+		decoder->didDecodeSublist = finishWidget;
+	}
+}
+
+void setWidgetValue(json_decoder* decoder, const char* key, json_value value)
+{
+	Widget* widget = decoder->userdata;
+	if ( strcmp(key, "floops") == 0 )
+		widget.floops = json_floatValue(value);
+	// ...
+}
+
+void* finishWidget(json_decoder* decoder, const char* name, json_value_type type)
+{
+	widgetCompleted(decoder->userdata); // send to external function
+	return decoder->userdata; // or return the widget in didDecodeTableValue()'s value.data.tableval field
+}
+
+After finishWidget() is called and the parser exits the scope, the previous decoder functions are restored.
+
+json_value_type
+
+typedef enum
+{
+	kJSONNull,
+	kJSONTrue,
+	kJSONFalse,
+	kJSONInteger,
+	kJSONFloat,
+	kJSONString,
+	kJSONArray,
+	kJSONTable
+} json_value_type;
+
+json_value
+
+typedef struct
+{
+	char type;
+	union
+	{
+		int intval;
+		float floatval;
+		char* stringval;
+		void* arrayval;
+		void* tableval;
+	} data;
+} json_value;
+
+int json_intValue(json_value value);
+
+float json_floatValue(json_value value);
+
+int json_boolValue(json_value value);
+
+char* json_stringValue(json_value value);
+
+Note that a whole number encoded to JSON as a float might be decoded as an int. The above convenience functions can be used to convert a json_value to the required type.
+
+json_reader
+
+typedef struct
+{
+	int (*read)(void* readud, uint8_t* buf, int bufsize); // fill buffer, return bytes written or 0 on end of data
+	void* userdata;
+} json_reader;
+
+json_reader’s read member provides data to the decoder. It should return 0 when it is done reading. Here’s an example implementation:
+
+int readfile(void* readud, uint8_t* buf, int bufsize) {
+	return playdate->file->read((SDFile*)readud, buf, bufsize);
+}
+
+SDFile* file = pd->file->open("data.json", kFileRead);
+pd->json->decode(&decoder, (json_reader){ .read = readfile, .userdata = file }, NULL);
+
+Encoding
+
+void playdate->json->initEncoder(json_encoder* encoder, writeFunc* write, void* userdata, int pretty);
+
+Populates the given json_encoder encoder with the functions necessary to encode arbitrary data into a JSON string. userdata is passed as the first argument of the given writeFunc write. When pretty is 1 the string is written with human-readable formatting.
+
+json_encoder
+
+typedef struct json_encoder
+{
+	void (*startArray)(struct json_encoder* encoder);
+	void (*addArrayMember)(struct json_encoder* encoder);
+	void (*endArray)(struct json_encoder* encoder);
+	void (*startTable)(struct json_encoder* encoder);
+	void (*addTableMember)(struct json_encoder* encoder, const char* name, int len);
+	void (*endTable)(struct json_encoder* encoder);
+	void (*writeNull)(struct json_encoder* encoder);
+	void (*writeFalse)(struct json_encoder* encoder);
+	void (*writeTrue)(struct json_encoder* encoder);
+	void (*writeInt)(struct json_encoder* encoder, int num);
+	void (*writeDouble)(struct json_encoder* encoder, double num);
+	void (*writeString)(struct json_encoder* encoder, const char* str, int len);
+} json_encoder;
+
+Note that the encoder doesn’t perform any validation. It is up to the caller to ensure they are generating valid JSON.
+
+    startArray: Opens a new JavaScript Array.
+
+    addArrayMember: Creates a new index in the current JavaScript Array.
+
+    endArray: Closes the current JavaScript Array.
+
+    startTable: Opens a new JavaScript Object.
+
+    addTableMember: Creates a new property in the current JavaScript Object.
+
+    endTable: Closes the current JavaScript Object.
+
+    writeNull: Writes the JavaScript primitive null.
+
+    writeFalse: Writes the JavaScript boolean value false.
+
+    writeTrue: Writes the JavaScript boolean value true.
+
+    writeInt: Writes num as a JavaScript number.
+
+    writeDouble: Writes num as a JavaScript number.
+
+    writeString: Writes str of length len as a JavaScript string literal.
+
+writeFunc
+
+typedef void (writeFunc)(void* userdata, const char* str, int len);
+
+Here’s an example writeFunc implementation using playdate->file->write() to write the JSON string to a file:
+
+void writefile(void* userdata, const char* str, int len) {
+	playdate->file->write((SDFile*)userdata, str, len);
+}
+
+7.11. Lua
+Adding functions or tables
+
+int playdate->lua->addFunction(lua_CFunction f, const char* name, const char** outErr);
+
+Adds the Lua function f to the Lua runtime, with name name. (name can be a table path using dots, e.g. if name = “mycode.myDrawingFunction” adds the function “myDrawingFunction” to the global table “myCode”.) Returns 1 on success or 0 with an error message in outErr.
+
+lua_CFunction
+
+typedef int (*lua_CFunction) (lua_State *L);
+
+A lua_CFunction should return the number of return values it has pushed onto the stack. Returns 1 on success or 0 with an error message in outErr. See Returning values to Lua.
+
+void playdate->lua->registerClass_deprecated(const luaL_Reg* reg, const char* name, const char** outErr);
+
+Adds the function list reg to the Lua runtime, with the class name name. As above, name can be a table path. The list is terminated with a {NULL, NULL} entry.
+
+int playdate->lua->registerClass(const char* name, const lua_reg* reg, const lua_val* vals, int isstatic, const char** outErr);
+
+Creates a new "class" (i.e., a Lua metatable containing functions) with the given name and adds the given functions and constants to it. If the table is simply a list of functions that won’t be used as a metatable, isstatic should be set to 1 to create a plain table instead of a metatable. Please see C_API/Examples/Array for an example of how to use registerClass to create a Lua table-like object from C.
+
+lua_reg
+
+typedef struct lua_reg
+{
+	const char *name;
+	lua_CFunction func;
+} lua_reg;
+
+lua_val
+
+typedef struct lua_val
+{
+	const char *name;
+	enum { kInt, kFloat, kStr } type;
+	union
+	{
+		unsigned int intval;
+		float floatval;
+		const char* strval;
+	} v;
+} luaL_Val;
+
+void playdate->lua->start(void);
+
+Starts the run loop back up.
+
+void playdate->lua->stop(void);
+Getting values from Lua
+
+The following functions are called from within a Lua function implementation to retrieve the function arguments and set the return value(s):
+
+enum LuaType playdate->lua->getArgType(int pos, const char** outClass);
+
+Returns the type of the variable at stack position pos. If the type is kTypeObject and outClass is non-NULL, it returns the name of the object’s metatable.
+
+LuaType
+
+enum LuaType
+{
+	kTypeNil,
+	kTypeBool,
+	kTypeInt,
+	kTypeFloat,
+	kTypeString,
+	kTypeTable,
+	kTypeFunction,
+	kTypeThread,
+	kTypeObject
+};
+
+int playdate->lua->getArgCount(void);
+
+Returns the number of arguments passed to the function.
+
+int playdate->lua->argIsNil(int pos);
+
+Returns 1 if the argument at the given position pos is nil.
+
+int playdate->lua->getArgBool(int pos);
+
+Returns one if the argument at position pos is true, zero if not.
+
+float playdate->lua->getArgFloat(int pos);
+
+Returns the argument at position pos as a float.
+
+int playdate->lua->getArgInt(int pos);
+
+Returns the argument at position pos as an int.
+
+const char* playdate->lua->getArgString(int pos);
+
+Returns the argument at position pos as a string.
+
+LCDSprite* playdate->lua->getSprite(int pos);
+
+Returns the argument at position pos as an LCDSprite.
+
+const char* playdate->lua->getArgBytes(int pos, size_t* outlen);
+
+Returns the argument at position pos as a string and sets outlen to its length.
+
+LCDBitmap* playdate->lua->getBitmap(int pos);
+
+Returns the argument at position pos as an LCDBitmap.
+Returning values to Lua
+
+If a function needs to return data to the caller it must return the number of return values pushed onto the stack.
+
+void playdate->lua->pushBool(int val);
+
+Pushes the int val onto the stack.
+
+void playdate->lua->pushFloat(float val);
+
+Pushes the float val onto the stack.
+
+void playdate->lua->pushInt(int val);
+
+Pushes the int val onto the stack.
+
+void playdate->lua->pushNil(void);
+
+Pushes nil onto the stack.
+
+void playdate->lua->pushString(char* str);
+
+Pushes the string str onto the stack.
+
+void playdate->lua->pushBytes(char* str, size_t len);
+
+Like pushString(), but pushes an arbitrary byte array to the stack, ignoring \0 characters.
+
+void playdate->lua->pushFunction(lua_CFunction f);
+
+Pushes a lua_CFunction onto the stack.
+
+void playdate->lua->pushBitmap(LCDBitmap* bitmap);
+
+Pushes the LCDBitmap bitmap onto the stack.
+
+void playdate->lua->pushSprite(LCDSprite* sprite);
+
+Pushes the LCDSprite sprite onto the stack.
+Passing custom objects between C and Lua
+
+LuaUDObject* playdate->lua->pushObject(void* obj, char* type, int nValues);
+
+Pushes the given custom object obj onto the stack and returns a pointer to the opaque LuaUDObject. type must match the class name used in playdate->lua->registerClass(). nValues is the number of slots to allocate for Lua values (see set/getObjectValue()).
+
+void* playdate->lua->getArgObject(int pos, char* type, LuaUDObject** outud);
+
+Checks the object type of the argument at position pos and returns a pointer to it if it’s the correct type. Optionally sets outud to a pointer to the opaque LuaUDObject for the given stack.
+
+LuaUDObject* playdate->lua->retainObject(LuaUDObject* obj);
+
+Retains the opaque LuaUDObject obj and returns same.
+
+void playdate->lua->releaseObject(LuaUDObject* obj);
+
+Releases the opaque LuaUDObject obj.
+
+void playdate->lua->setUserValue(LuaUDObject* obj, int slot);
+
+Sets the value of object obj's uservalue slot number slot (starting at 1, not zero) to the value at the top of the stack.
+
+int playdate->lua->getUserValue(LuaUDObject* obj, int slot);
+
+Copies the value at obj's given uservalue slot to the top of the stack and returns its stack position.
+Calling Lua from C
+
+int playdate->lua->callFunction(const char* name, int nargs, const char** outerr);
+
+Calls the Lua function name and and indicates that nargs number of arguments have already been pushed to the stack for the function to use. name can be a table path using dots, e.g. “playdate.apiVersion”. Returns 1 on success; on failure, returns 0 and puts an error message into the outerr pointer, if it’s set. Calling Lua from C is slow, so use sparingly.
+7.12. Sprites
+
+LCDSprite* playdate->sprite->newSprite(void);
+
+Allocates and returns a new LCDSprite.
+
+LCDSprite* playdate->sprite->copy(LCDSprite *sprite);
+
+Allocates and returns a copy of the given sprite.
+
+void playdate->sprite->freeSprite(LCDSprite *sprite);
+Properties
+
+void playdate->sprite->setBounds(LCDSprite *sprite, PDRect bounds);
+
+Sets the bounds of the given sprite with bounds.
+
+PDRect playdate->sprite->getBounds(LCDSprite *sprite);
+
+Returns the bounds of the given sprite as an PDRect;
+
+void playdate->sprite->moveTo(LCDSprite *sprite, float x, float y);
+
+Moves the given sprite to x, y and resets its bounds based on the bitmap dimensions and center.
+
+void playdate->sprite->moveBy(LCDSprite *sprite, float dx, float dy);
+
+Moves the given sprite to by offsetting its current position by dx, dy.
+
+void playdate->sprite->getPosition(LCDSprite *sprite, float *x, float *y);
+
+Sets x and y to the current position of sprite.
+
+void playdate->sprite->setCenter(LCDSprite *sprite, float x, float y);
+
+Sets the sprite’s drawing center as a fraction (ranging from 0.0 to 1.0) of the height and width. Default is 0.5, 0.5 (the center of the sprite). This means that when you call sprite→moveTo(sprite, x, y), the center of your sprite will be positioned at x, y. If you want x and y to represent the upper left corner of your sprite, specify the center as 0, 0.
+
+void playdate->sprite->getCenter(LCDSprite *sprite, float *outx, float *outy);
+
+Sets the values in outx and outy to the sprite’s drawing center as a fraction (ranging from 0.0 to 1.0) of the height and width.
+
+void playdate->sprite->setImage(LCDSprite *sprite, LCDBitmap *image, LCDBitmapFlip flip);
+
+Sets the given sprite's image to the given bitmap.
+
+LCDBitmap* playdate->sprite->getImage(LCDSprite *sprite);
+
+Returns the LCDBitmap currently assigned to the given sprite.
+
+void playdate->sprite->setSize(LCDSprite *s, float width, float height);
+
+Sets the size. The size is used to set the sprite’s bounds when calling moveTo().
+
+void playdate->sprite->setZIndex(LCDSprite *sprite, int16_t zIndex);
+
+Sets the Z order of the given sprite. Higher Z sprites are drawn on top of those with lower Z order.
+
+int16_t playdate->sprite->getZIndex(LCDSprite *sprite);
+
+Returns the Z index of the given sprite.
+
+void playdate->sprite->setTag(LCDSprite *sprite, uint8_t tag);
+
+Sets the tag of the given sprite. This can be useful for identifying sprites or types of sprites when using the collision API.
+
+uint8_t playdate->sprite->getTag(LCDSprite *sprite);
+
+Returns the tag of the given sprite.
+
+void playdate->sprite->setDrawMode(LCDSprite *sprite, LCDBitmapDrawMode mode);
+
+Sets the mode for drawing the sprite’s bitmap.
+
+void playdate->sprite->setImageFlip(LCDSprite *sprite, LCDBitmapFlip flip);
+
+LCDBitmapFlip playdate->sprite->getImageFlip(LCDSprite *sprite);
+
+Returns the flip setting of the sprite’s bitmap.
+
+void playdate->sprite->setStencil(LCDSprite *sprite, LCDBitmap* stencil);
+
+Specifies a stencil image to be set on the frame buffer before the sprite is drawn.
+
+void playdate->sprite->setStencilImage(LCDSprite *sprite, LCDBitmap* stencil, int tile);
+
+Specifies a stencil image to be set on the frame buffer before the sprite is drawn. If tile is set, the stencil will be tiled. Tiled stencils must have width evenly divisible by 32.
+
+void playdate->sprite->setStencilPattern(LCDSprite* sprite, uint8_t pattern[8]);
+
+Sets the sprite’s stencil to the given pattern.
+
+void playdate->sprite->clearStencil(LCDSprite *sprite);
+
+Clears the sprite’s stencil.
+
+void playdate->sprite->setClipRect(LCDSprite *sprite, LCDRect clipRect);
+
+Sets the clipping rectangle for sprite drawing.
+
+void playdate->sprite->clearClipRect(LCDSprite *sprite);
+
+Clears the sprite’s clipping rectangle.
+
+void playdate->sprite->setClipRectsInRange(LCDRect clipRect, int startZ, int endZ);
+
+Sets the clipping rectangle for all sprites with a Z index within startZ and endZ inclusive.
+
+void playdate->sprite->clearClipRectsInRange(int startZ, int endZ);
+
+Clears the clipping rectangle for all sprites with a Z index within startZ and endZ inclusive.
+
+void playdate->sprite->setUpdatesEnabled(LCDSprite *sprite, int flag);
+
+Set the updatesEnabled flag of the given sprite (determines whether the sprite has its update function called). One is true, 0 is false.
+
+int playdate->sprite->updatesEnabled(LCDSprite *sprite);
+
+Get the updatesEnabled flag of the given sprite.
+
+void playdate->sprite->setVisible(LCDSprite *sprite, int flag);
+
+Set the visible flag of the given sprite (determines whether the sprite has its draw function called). One is true, 0 is false.
+
+int playdate->sprite->isVisible(LCDSprite *sprite);
+
+Get the visible flag of the given sprite.
+
+void playdate->sprite->setOpaque(LCDSprite *sprite, int flag);
+
+Marking a sprite opaque tells the sprite system that it doesn’t need to draw anything underneath the sprite, since it will be overdrawn anyway. If you set an image without a mask/alpha channel on the sprite, it automatically sets the opaque flag.
+
+void playdate->sprite->setAlwaysRedraw(int flag);
+
+When flag is set to 1, this causes all sprites to draw each frame, whether or not they have been marked dirty. This may speed up the performance of your game if the system’s dirty rect tracking is taking up too much time - for example if there are many sprites moving around on screen at once.
+
+void playdate->sprite->markDirty(LCDSprite *sprite);
+
+Forces the given sprite to redraw.
+
+void playdate->sprite->addDirtyRect(LCDRect dirtyRect);
+
+Marks the given dirtyRect (in screen coordinates) as needing a redraw. Graphics drawing functions now call this automatically, adding their drawn areas to the sprite’s dirty list, so there’s usually no need to call this manually.
+
+void playdate->sprite->setIgnoresDrawOffset(LCDSprite *sprite, int flag);
+
+When flag is set to 1, the sprite will draw in screen coordinates, ignoring the currently-set drawOffset.
+
+This only affects drawing, and should not be used on sprites being used for collisions, which will still happen in world-space.
+
+void playdate->sprite->setUpdateFunction(LCDSprite *sprite, LCDSpriteUpdateFunction *func);
+
+Sets the update function for the given sprite.
+
+LCDSpriteUpdateFunction
+
+typedef void LCDSpriteUpdateFunction(LCDSprite* sprite);
+
+void playdate->sprite->setDrawFunction(LCDSprite *sprite, LCDSpriteDrawFunction *func);
+
+Sets the draw function for the given sprite. Note that the callback is only called when the sprite is on screen and has a size specified via playdate→sprite→setSize() or playdate→sprite→setBounds().
+
+LCDSpriteDrawFunction
+
+typedef void LCDSpriteDrawFunction(LCDSprite* sprite, PDRect bounds, PDRect drawrect);
+
+If the sprite doesn’t have an image, the sprite’s draw function is called as needed to update the display. bounds is the bounds of hte given sprite. frame is the raw bitmap data of the current frame buffer. drawRect is the current dirty rect being updated by the display list.
+
+void playdate->sprite->setUserdata(LCDSprite *sprite, void* userdata);
+
+void* playdate->sprite->getUserdata(LCDSprite *sprite);
+
+Sets and gets the sprite’s userdata, an arbitrary pointer used for associating the sprite with other data.
+Display List
+
+void playdate->sprite->addSprite(LCDSprite *sprite);
+
+Adds the given sprite to the display list, so that it is drawn in the current scene.
+
+void playdate->sprite->removeSprite(LCDSprite *sprite);
+
+Removes the given sprite from the display list.
+
+void playdate->sprite->removeSprites(LCDSprite **sprites, int count);
+
+Removes the given count sized array of sprites from the display list.
+
+void playdate->sprite->removeAllSprites(void);
+
+Removes all sprites from the display list.
+
+int playdate->sprite->getSpriteCount(void);
+
+Returns the total number of sprites in the display list.
+
+void playdate->sprite->drawSprites(void);
+
+Draws every sprite in the display list.
+
+void playdate->sprite->updateAndDrawSprites(void);
+
+Updates and draws every sprite in the display list.
+Collisions
+
+Note that the caller is responsible for freeing any arrays returned by these collision methods.
+
+void playdate->sprite->resetCollisionWorld(void);
+
+Frees and reallocates internal collision data, resetting everything to its default state.
+
+void playdate->sprite->setCollisionsEnabled(LCDSprite *sprite, int flag);
+
+Set the collisionsEnabled flag of the given sprite (along with the collideRect, this determines whether the sprite participates in collisions). One is true, 0 is false. Set to 1 by default.
+
+int playdate->sprite->collisionsEnabled(LCDSprite *sprite);
+
+Get the collisionsEnabled flag of the given sprite.
+
+void playdate->sprite->setCollideRect(LCDSprite *sprite, PDRect collideRect);
+
+Marks the area of the given sprite, relative to its bounds, to be checked for collisions with other sprites' collide rects.
+
+PDRect playdate->sprite->getCollideRect(LCDSprite *sprite);
+
+Returns the given sprite’s collide rect.
+
+void playdate->sprite->clearCollideRect(LCDSprite *sprite);
+
+Clears the given sprite’s collide rect.
+
+void playdate->sprite->setCollisionResponseFunction(LCDSprite *sprite, LCDSpriteCollisionFilterProc *func);
+
+Set a callback that returns a SpriteCollisionResponseType for a collision between sprite and other.
+
+LCDSpriteCollisionFilterProc
+
+typedef SpriteCollisionResponseType LCDSpriteCollisionFilterProc(LCDSprite* sprite, LCDSprite* other);
+
+SpriteCollisionInfo* playdate->sprite->checkCollisions(LCDSprite *sprite, float goalX, float goalY, float *actualX, float *actualY, int *len);
+
+Returns the same values as playdate->sprite->moveWithCollisions() but does not actually move the sprite. The caller is responsible for freeing the returned array.
+
+SpriteCollisionInfo* playdate->sprite->moveWithCollisions(LCDSprite *sprite, float goalX, float goalY, float *actualX, float *actualY, int *len);
+
+Moves the given sprite towards goalX, goalY taking collisions into account and returns an array of SpriteCollisionInfo. len is set to the size of the array and actualX, actualY are set to the sprite’s position after collisions. If no collisions occurred, this will be the same as goalX, goalY. The caller is responsible for freeing the returned array.
+
+Note that SpriteCollisionInfo is a struct so you should grab a pointer when accessing each one: SpriteCollisionInfo *info = &results[i];.
+
+SpriteCollisionInfo
+
+struct SpriteCollisionInfo
+{
+	LCDSprite *sprite;
+	LCDSprite *other;
+	SpriteCollisionResponseType responseType;
+	uint8_t overlaps;
+	float ti;
+	CollisionPoint move;
+	CollisionVector normal;
+	CollisionPoint touch;
+	PDRect spriteRect;
+	PDRect otherRect;
+};
+
+    sprite: The sprite being moved.
+
+    other: The sprite colliding with the sprite being moved.
+
+    type: The result of collisionResponse (see SpriteCollisionResponseType below).
+
+    overlaps: One if the sprite was overlapping other when the collision started. Zero if it didn’t overlap but tunneled through other.
+
+    ti: A number between 0 and 1 indicating how far along the movement to the goal the collision occurred.
+
+    move: The difference between the original coordinates and the actual ones when the collision happened (see CollisionPoint below).
+
+    normal: The collision normal; usually -1, 0, or 1 in x and y. Use this value to determine things like if your character is touching the ground (see CollisionVector below).
+
+    touch: The coordinates where the sprite started touching other.
+
+    spriteRect: The rectangle the sprite occupied when the touch happened.
+
+    otherRect: The rectangle other occupied when the touch happened.
+
+SpriteCollisionResponseType
+
+typedef enum {
+	kSpriteCollisionTypeSlide,
+	kSpriteCollisionTypeFreeze,
+	kSpriteCollisionTypeOverlap,
+	kSpriteCollisionTypeBounce
+} SpriteCollisionResponseType;
+
+    kSpriteCollisionTypeSlide: Use for collisions that should slide over other objects, like Super Mario does over a platform or the ground.
+
+    kSpriteCollisionTypeFreeze: Use for collisions where the sprite should stop moving as soon as it collides with other, such as an arrow hitting a wall.
+
+    kSpriteCollisionTypeOverlap: Use for collisions in which you want to know about the collision but it should not impact the movement of the sprite, such as when collecting a coin.
+
+    kSpriteCollisionTypeBounce: Use when the sprite should move away from other, like the ball in Pong or Arkanoid.
+
+CollisionPoint
+
+typedef struct {
+	float x;
+	float y;
+} CollisionPoint;
+
+CollisionVector
+
+typedef struct {
+	int x;
+	int y;
+} CollisionVector;
+
+LCDSprite** playdate->sprite->querySpritesAtPoint(float x, float y, int *len);
+
+Returns an array of all sprites with collision rects containing the point at x, y. len is set to the size of the array. The caller is responsible for freeing the returned array.
+
+LCDSprite** playdate->sprite->querySpritesInRect(float x, float y, float width, float height, int *len);
+
+Returns an array of all sprites with collision rects that intersect the width by height rect at x, y. len is set to the size of the array. The caller is responsible for freeing the returned array.
+
+LCDSprite** playdate->sprite->querySpritesAlongLine(float x1, float y1, float x2, float y2, int *len);
+
+Returns an array of all sprites with collision rects that intersect the line connecting x1, y1 and x2, y2. len is set to the size of the array. The caller is responsible for freeing the returned array.
+
+SpriteQueryInfo* playdate->sprite->querySpriteInfoAlongLine(float x1, float y1, float x2, float y2, int *len);
+
+Returns an array of SpriteQueryInfo for all sprites with collision rects that intersect the line connecting x1, y1 and x2, y2. len is set to the size of the array. If you don’t need this information, use querySpritesAlongLine() as it will be faster. The caller is responsible for freeing the returned array.
+
+Note that SpriteQueryInfo is a struct so you should grab a pointer when accessing each one: SpriteQueryInfo *info = &results[i];.
+
+SpriteQueryInfo
+
+struct SpriteQueryInfo
+{
+	LCDSprite *sprite;
+	float ti1;
+	float ti2;
+	CollisionPoint entryPoint;
+	CollisionPoint exitPoint;
+};
+
+    sprite: The sprite being intersected by the segment.
+
+    ti1 & ti2: Numbers between 0 and 1 which indicate how far from the starting point of the line segment the collision happened. ti1 is relative to the entry point, ti2 is relative to the exit point.
+
+    entryPoint: The coordinates of the first intersection between sprite and the line segment (see CollisionPoint above).
+
+    exitPoint: The coordinates of the second intersection between sprite and the line segment (see CollisionPoint above).
+
+LCDSprite** playdate->sprite->overlappingSprites(LCDSprite *sprite, int *len);
+
+Returns an array of sprites that have collide rects that are currently overlapping the given sprite’s collide rect. len is set to the size of the array. The caller is responsible for freeing the returned array.
+
+LCDSprite** playdate->sprite->allOverlappingSprites(int *len);
+
+Returns an array of all sprites that have collide rects that are currently overlapping. Each consecutive pair of sprites is overlapping (eg. 0 & 1 overlap, 2 & 3 overlap, etc). len is set to the size of the array. The caller is responsible for freeing the returned array.
